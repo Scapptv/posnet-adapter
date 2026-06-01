@@ -8,17 +8,20 @@
 
 ---
 
-## 🎯 STRATEGİYA (ADR-0011 — 2026-06-01 re-scope)
+## 🎯 STRATEGİYA (ADR-0012 — POS-anchored İnteqrasiya Hub)
 
-- **Beachhead:** Azərbaycan · kafe/restoran + kiçik pərakəndə (v1 = ortaq nüvə)
-- **Yanaşma:** "Yalnız yenidən scope" — faza sırası saxlanılır, **AI-3…AI-7 DONDURULUB**
-- **Yeni gate:** **G-V (Validasiya)** — AI-2 MVP-dən sonra satıcı demo + kill/continue
-- **Paralel trek:** Validasiya (operator-un satıcı tanışları ilə) — AI toolkit hazırlayır
-- **İcra fokusu:** AI-0 → AI-1 → AI-2 (fiziki POS MVP, mock fiskal). Real fiskal: G-V sonra.
+**Məhsul:** POS-anchored omnichannel **inteqrasiya hub** (TSoft/Entegra/ChannelEngine modeli).
+POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/booking-ə çıxarır.
 
-> ❄️ Dondurulan fazalar G-V keçənə qədər başlanmır: AI-3 (order+adapter),
-> AI-4 (marketplace), AI-5 (online+storefront+delivery), AI-6 (accounting+multi-country),
-> AI-7 (booking+cloud). Detal: `docs/adr/0011-beachhead-rescope.md`.
+- **Beachhead:** **Azərbaycan · pərakəndə (market/butik) · ilk kanal = Birmarket/Trendyol (marketplace)**
+- **İlk MVP dilimi:** POS-da məhsul → Birmarket-ə listing → stok/qiymət sync → sifariş POS-a → stok hər yerdə azalır
+- **Crown jewel:** adapter SDK + canonical model + sync engine (idempotency + reconciliation 1-ci gündən)
+- **Paralel insan trekləri:** (1) retail satıcı müsahibələri · (2) **Birmarket/Trendyol seller API access** (partner gate, D-002)
+- **AI build (blok deyil):** framework + **mock Birmarket adapter** → real credential gələndə swap
+
+> 🔄 ADR-0011 dondurması incələşdirildi: adapter framework + 1 kanal artıq CORE (yeni task **AI-2.5**, MVP-yə daxil).
+> Hələ təxirdə: 2-ci kanal, delivery & booking domain, fiskal, multi-country, cloud, TR.
+> Detal: `docs/adr/0012-integration-hub-reframe.md`.
 
 ---
 
@@ -62,10 +65,11 @@
 
 ## Gate vəziyyəti
 - G0 (Bootstrap): ⏳ Faza AI-0 sonu (2/11 task tamamlanıb)
-- G1 (Foundation): planlandı (AI-1.1-də coverage gate 80%-ə qaytarılacaq)
-- G2-G6: planlandı
-- **G7 (Staging):** ⚠️ ADR-0010 starlette CVE həll məcburi öncəsi
-- G8 (Production): planlandı
+- G1 (Foundation): planlandı — eventbus/outbox prioritet (hub onurğası)
+- G2 (POS Core): planlandı — canonical model "hub-a hazır"
+- **AI-2.5 (Adapter framework + 1 kanal):** 🆕 ADR-0012 — MVP-yə daxil (mock→real Birmarket)
+- **G-V (Validasiya):** ADR-0012 — "online çıxış" dilimini retail satıcıya demo (kill/continue)
+- G3-G6, G7, G8: ❄️ təxirdə (G-V sonrası); G7-də ADR-0010 starlette CVE məcburi
 
 ---
 

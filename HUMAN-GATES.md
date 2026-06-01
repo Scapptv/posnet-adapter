@@ -37,6 +37,22 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 - **Satıcı çıxışı:** Var (operator tanışları) → validasiya paraleldir.
 **Nəticə:** ADR-0011 yaradıldı. Növbəti: validasiya toolkit + AI-0…AI-2 icrası.
 
+### D-002 — Məhsul reframe: POS-anchored İnteqrasiya Hub
+**Tarix:** 2026-06-01
+**Kontekst:** Operator dəqiqləşdirdi — məhsul TSoft/Entegra/ChannelEngine tipli inteqrasiya
+hub-ıdır (POS lövbər; merchant öz mağazasını portallara çıxarır). Adapterlər periferik deyil, CORE.
+Audit + ADR-0011 bunu az qiymətləndirmişdi. AI dünya referanslarını araşdırdı (bax ADR-0012).
+**Operator qərarları (2 fork):**
+- **Bazar:** Azərbaycan əvvəl (konsolidasiya kanallar Birmarket+Trendyol; integrator rəqabəti az).
+- **İlk dilim:** Pərakəndə × Marketplace (ilk kanal Birmarket/Trendyol; SKU/barkod canonical model).
+**Nəticə:** ADR-0012 yaradıldı (ADR-0011-i incələşdirir — adapter framework + 1 kanal CORE/MVP).
+
+**Partner gate (D-002 nəticəsi) — İNSAN:** Birmarket (ex-Umico) və/və ya Trendyol **seller/marketplace
+API access** (sandbox + credential). AI bunu edə bilməz (partner müraciəti). **Bloklamır:** AI mock
+Birmarket adapteri ilə framework-i qurur, real credential gələndə swap. Texniki qeyd: Trendyol-un
+public Marketplace API-si sənədlidir → ilk REAL adapter texniki olaraq Trendyol daha asan ola bilər.
+**Status:** ⏳ İnsan müraciət edəcək (paralel).
+
 ---
 
 ## Açıq Suallar (AI → İnsan)
