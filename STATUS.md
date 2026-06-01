@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-0 (BOOTSTRAP)
-**Cari task:** AI-0.5 (Docker stack: dev infra — mailpit, minio, caddy + mkcert TLS)
-**Son commit:** `07c503c` — feat(infra): AI-0.3 Docker stack
-**Son uğurlu verify:** 2026-06-01; AI-0.4 observability işlək (9/9 servis, OTLP→Jaeger E2E ✅)
+**Cari task:** AI-0.6 (Frontend tooling — Node + pnpm workspace + shared eslint/prettier)
+**Son commit:** `29b7add` — feat(infra): AI-0.4 observability stack
+**Son uğurlu verify:** 2026-06-01; AI-0.5 dev infra işlək (13 servis, Caddy daxili-TLS ✅)
 **Vəziyyət:** IN_PROGRESS
 
 ---
@@ -29,23 +29,23 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 - [x] **AI-0.1** — Monorepo skeleton + Git init (commit: `0a290ad`) — 2026-06-01
 - [x] **AI-0.2** — Python tooling (pyproject + Makefile + pre-commit; ADR-0010 CVE) — 2026-06-01
 - [x] **AI-0.3** — Docker stack: backend (postgres+pgmq, redis, vault, keycloak) — 2026-06-01
-  - `docker-compose.yml` (name: **adapter**) + `infra/postgres/init.sql` + keycloak realm placeholder
-  - **pgmq image düzəlişi:** `ghcr.io/pgmq/pg16-pgmq` · Konteynerlər **`adapter_*`** (help-center `posnet_*`-dən AYRI)
-  - Funksional ✅: pgmq e2e (send/read) · pg_trgm · vault kv · keycloak OIDC token
-- [x] **AI-0.4** — Docker stack: observability (otel-collector, jaeger, prometheus, loki, grafana) — 2026-06-01
-  - `infra/{otel,prometheus,loki,grafana}` config; docker-compose 9 servis cəmi
-  - Pipeline: app → **OTLP(4317/4318)** → collector → Jaeger(trace) / Prometheus(metric) / Loki(log)
-  - Acceptance ✅: jaeger UI 200 · prometheus healthy · grafana ok (3 datasource provisioned) · loki ready · **OTLP→Jaeger E2E test keçdi**
+  - **`adapter_*`** konteynerlər (help-center `posnet_*`-dən AYRI); pgmq image `ghcr.io/pgmq/pg16-pgmq`
+  - Funksional ✅: pgmq e2e · pg_trgm · vault kv · keycloak OIDC token
+- [x] **AI-0.4** — Docker stack: observability (otel, jaeger, prometheus, loki, grafana) — 2026-06-01
+  - Pipeline: app → OTLP(4317/4318) → collector → Jaeger/Prometheus/Loki; Grafana 3 datasource
+  - Acceptance ✅: **OTLP→Jaeger E2E test keçdi**
+- [x] **AI-0.5** — Docker stack: dev infra (mailpit, minio, caddy) — 2026-06-01
+  - mailpit (SMTP 1025 / UI 8025), minio (S3 9000 / console 9101) + bucket-lar (posnet-uploads, posnet-backups)
+  - caddy **daxili-CA TLS** (mkcert lazım deyil); host 80/443 tutulu → 8443, minio console 9001 → 9101
+  - Acceptance ✅: mailpit 200 · minio health 200 · 2 bucket · Caddy reverse_proxy (mail.posnet.local → mailpit 200)
 
 ## İcrada
-- [ ] **AI-0.5** — Docker stack: dev infra (mailpit, minio, caddy + mkcert TLS)
-  - docker-compose-ə əlavə + `infra/caddy/Caddyfile` + MinIO bucket-lar
-  - **Preflight:** mkcert + `mkcert -install` (TLS üçün)
+- [ ] **AI-0.6** — Frontend tooling (Node + pnpm workspace + shared eslint/prettier)
+  - **Preflight:** Node.js 20 LTS + pnpm (yoxlanacaq; yoxdursa insan quraşdırır)
 
 ## Növbəti (FAZA AI-0 qalan — AI-ROADMAP.md §14)
-- [ ] AI-0.6 — Frontend tooling (Node + pnpm workspace + shared eslint/prettier)
 - [ ] AI-0.7 — Flutter tooling skeleton (preflight: Flutter 3.24+ — gec mərhələdə də OK)
-- [ ] AI-0.8 — GitHub Actions CI (lint + test + security + build)
+- [ ] AI-0.8 — GitHub Actions CI (preflight: GitHub repo/org)
 - [ ] AI-0.9 — ADR + Runbook templates (ADR-0010/0011/0012 artıq mövcuddur)
 - [ ] AI-0.10 — CLAUDE.md tamamla (hub modelinə uyğunlaşdırıldı ✅)
 - [ ] AI-0.11 — Smoke test: `make bootstrap`
@@ -54,12 +54,13 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 (yox)
 
 ## Bloklar / Həll olunmuş
-- ✅ Git identity · Python 3.12.12 (uv) · make 3.81 (winget GnuWin32)
-- ✅ **İki ayrı posnet layihəsi aydınlaşdırıldı:** bu layihə = `adapter_*` konteynerlər; `posnet-help-center` = `posnet_*` (pgvector+meili, toxunma)
+- ✅ Git identity · Python 3.12.12 (uv) · make 3.81 (winget) · Docker Desktop v29.4.3
+- ✅ **İki ayrı posnet layihəsi:** bu = `adapter_*`; `posnet-help-center` = `posnet_*` (toxunma)
+- ✅ **Port toqquşmaları həll:** keycloak mgmt 9100, minio console 9101, caddy 8443 (host 80/443/9001 başqa proseslər)
 - ⏳ **CVE remediation** (ADR-0010): 3 CVE müvəqqəti ignored — Faza AI-7 G7 gate-də məcburi həll
 
 ## Gate vəziyyəti
-- G0 (Bootstrap): ⏳ Faza AI-0 sonu (**4/11** task tamamlanıb)
+- G0 (Bootstrap): ⏳ Faza AI-0 sonu (**5/11** task tamamlanıb)
 - G1 (Foundation): planlandı — eventbus/outbox prioritet (hub onurğası)
 - G2 (POS Core): planlandı — canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** 🆕 ADR-0012 — MVP-yə daxil (mock→real Birmarket)
@@ -69,10 +70,9 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 ---
 
 ## Preflight Checklist (İnsan)
-- [x] Python 3.12.12 (uv) · uv · make 3.81 quraşdırıldı
-- [x] **Docker Desktop işləyir** (v29.4.3 — AI-0.3/0.4 stack qaldırıldı ✅)
-- [ ] mkcert + `mkcert -install` (AI-0.5 öncəsi — TLS)
-- [ ] Node.js 20 LTS (AI-0.6 öncəsi)
+- [x] Python 3.12.12 (uv) · uv · make 3.81 · **Docker Desktop v29.4.3** ✅
+- [x] ~~mkcert~~ — **lazım deyil** (Caddy daxili-CA TLS işlədir)
+- [ ] Node.js 20 LTS + pnpm (AI-0.6 öncəsi)
 - [ ] Flutter 3.24+ + fvm (AI-0.7 öncəsi — gec OK)
 - [ ] GitHub hesabı + private org + SSH key (AI-0.8 öncəsi)
 - [ ] VS Code + Claude Code extension hazır
@@ -92,6 +92,9 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 | Grafana | `localhost:3000` | admin / admin |
 | Loki | `localhost:3100` | — |
 | OTLP (app→collector) | `localhost:4317` (gRPC), `4318` (HTTP) | — |
+| Mailpit | `localhost:8025` (UI), `:1025` (SMTP) | — |
+| MinIO | `localhost:9000` (S3), `:9101` (console) | minioadmin / minioadmin |
+| Caddy (TLS) | `https://localhost:8443` (domenlər: hosts faylı) | daxili CA |
 
 ---
 
