@@ -10,7 +10,7 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 
 | Gate | Faza | Status | İcazə tarixi | İcazə verən |
 |---|---|---|---|---|
-| G0 — Bootstrap done | AI-0 | 🟡 **TƏSDİQ GÖZLƏYİR** (10/11) | — | — |
+| G0 — Bootstrap done | AI-0 | ✅ **APPROVED** | 2026-06-01 | Huseyn |
 | G1 — Foundation done | AI-1 | ⏳ Planlandı | — | — |
 | G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
 | **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ Planlandı | — | — |
@@ -90,9 +90,9 @@ public Marketplace API-si sənədlidir → ilk REAL adapter texniki olaraq Trend
 - [x] STATUS.md "Faza AI-0 done"
 - [ ] **GitHub Actions yaşıl** — ⏳ insan GitHub repo + remote qurub push etməlidir (workflows hazır); `CODEOWNERS @OWNER` doldur
 - [ ] **Caddy posnet.local domenləri** — hosts faylı (opsional); daxili-TLS 8443-də onsuz da işləyir
-**İnsan qeydi:** [operator doldurur]
-**Status:** ⏳ APPROVED gözləyir
-**İmza:** [operator] [tarix]
+**İnsan qeydi:** Bootstrap dev mühiti tam quruldu; AI-1 Foundation-a icazə verilir.
+**Status:** ✅ APPROVED
+**İmza:** Huseyn (operator), 2026-06-01
 
 ### Şablon — hər gate üçün
 ```markdown

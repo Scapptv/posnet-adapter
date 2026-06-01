@@ -1,10 +1,10 @@
 # STATUS — Posnet
 
-**Cari faza:** AI-0 (BOOTSTRAP) — ✅ **TAMAMLANDI** (G0 təsdiq gözləyir)
-**Cari task:** **G0 gate** (insan təsdiqi) → sonra **AI-1 (Foundation)**
-**Son commit:** `43e631e` — ci: AI-0.8 GitHub Actions workflows
-**Son uğurlu verify:** 2026-06-01; AI-0.11 bootstrap smoke yaşıl (12 servis up + verify)
-**Vəziyyət:** AI-0 DONE — **G0 GÖZLƏYİR**
+**Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
+**Cari task:** AI-1.1 (Test infra + coverage gate — TDD foundation)
+**Son commit:** `c04f021` — chore: .secrets.baseline təmizlə
+**Son uğurlu verify:** 2026-06-01; AI-0 bootstrap done (13 servis, smoke yaşıl)
+**Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
 
@@ -13,60 +13,63 @@
 **Məhsul:** POS-anchored omnichannel **inteqrasiya hub** (TSoft/Entegra/ChannelEngine modeli).
 POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/booking-ə çıxarır.
 
-- **Beachhead:** **Azərbaycan · pərakəndə (market/butik) · ilk kanal = Birmarket/Trendyol (marketplace)**
+- **Beachhead:** **Azərbaycan · pərakəndə · ilk kanal = Birmarket/Trendyol (marketplace)**
 - **İlk MVP dilimi:** POS-da məhsul → Birmarket-ə listing → stok/qiymət sync → sifariş POS-a → stok hər yerdə azalır
 - **Crown jewel:** adapter SDK + canonical model + sync engine (idempotency + reconciliation 1-ci gündən)
-- **Paralel insan trekləri:** (1) retail satıcı müsahibələri · (2) **Birmarket/Trendyol seller API access** (partner gate, D-002)
-- **AI build (blok deyil):** framework + **mock Birmarket adapter** → real credential gələndə swap
+- **Paralel insan trekləri:** (1) retail satıcı müsahibələri · (2) **Birmarket/Trendyol seller API access** (D-002)
 
-> 🔄 ADR-0011 dondurması incələşdirildi: adapter framework + 1 kanal CORE (yeni task **AI-2.5**, MVP-yə daxil).
-> Hələ təxirdə: 2-ci kanal, delivery & booking, fiskal, multi-country, cloud, TR. Detal: `docs/adr/0012-integration-hub-reframe.md`.
+> 🔄 Aktiv yol: AI-0 ✅ → **AI-1 (Foundation)** → AI-2 (POS Core) → AI-2.5 (Adapter framework, MVP) → G-V.
+> Detal: `docs/adr/0012-integration-hub-reframe.md`.
 
 ---
 
-## Faza AI-0 — TAMAMLANDI (10/11; AI-0.7 təxirdə)
+## Faza AI-1 — FOUNDATION (18 task; ~25-40 saat)
 
-- [x] **AI-0.1** Monorepo skeleton + Git init
-- [x] **AI-0.2** Python tooling (pyproject + Makefile + pre-commit; ADR-0010 CVE)
-- [x] **AI-0.3** Docker backend (postgres+pgmq, redis, vault, keycloak) — `adapter_*`
-- [x] **AI-0.4** Observability (otel, jaeger, prometheus, loki, grafana); OTLP→Jaeger E2E ✅
-- [x] **AI-0.5** Dev infra (mailpit, minio + bucket-lar, caddy daxili-TLS)
-- [x] **AI-0.6** Frontend tooling (pnpm workspace + admin-web Vite/React/TS; build ✅)
-- [x] **AI-0.8** GitHub Actions CI (lint/test/security/build + CODEOWNERS; lokal CI-equivalent yaşıl)
-- [x] **AI-0.9** ADR + Runbook şablonları + ADR-0001/0002/0003 (stack/monorepo/secrets)
-- [x] **AI-0.10** CLAUDE.md tamamlandı (hub modeli, v1.2)
-- [x] **AI-0.11** Bootstrap smoke (up + verify yaşıl)
-- [ ] ~~AI-0.7~~ Flutter tooling — ⏸️ **TƏXİRDƏ** (gec OK; kassir app AI-2-də)
+**Məqsəd:** Auth + multi-tenant + RLS + DB + **eventbus/outbox (hub onurğası)** + observability.
+**Middleware sırası:** RequestId → Logging → Tracing → Auth → TenantContext(RLS) → RateLimit → ErrorHandler.
 
-## İcrada
-- **G0 gate** — insan təsdiqi gözləyir (HUMAN-GATES.md → G0 girişi). Təsdiqdən sonra → AI-1.
+- [ ] **AI-1.1** Test infra + coverage gate (conftest + testcontainers + smoke) ← **CARİ**
+- [ ] AI-1.2 `libs/common` (logger, errors, types/Money, request-id)
+- [ ] AI-1.3 Vault setup + `get_secret()` helper
+- [ ] AI-1.4 `libs/canonical_model` skeleton (hub — erkən)
+- [ ] AI-1.5 SQLAlchemy models + Alembic + migration 0001 (identity)
+- [ ] AI-1.6 RLS policies (migration 0002) + cross-tenant izolasiya testi
+- [ ] AI-1.7 Keycloak realm + 3 client + 4 role + test user
+- [ ] AI-1.8 `libs/auth` (JWT verify + JWKS cache + require_permission)
+- [ ] AI-1.9 FastAPI app + middleware stack
+- [ ] AI-1.10 Global error handler (RFC 7807)
+- [ ] AI-1.11 Tenant context middleware (RLS injection)
+- [ ] AI-1.12 CORS + security headers + rate limiter
+- [ ] AI-1.13 OTel + Prometheus + Grafana + Loki wiring (app → mövcud stack)
+- [ ] **AI-1.14** pgmq publisher + outbox + consumer + DLQ — **hub onurğası (prioritet)**
+- [ ] AI-1.15 Tenant onboarding API + ilk tenant seed
+- [ ] AI-1.16 User/Role/Permission CRUD
+- [ ] AI-1.17 Feature flags + i18n backend
+- [ ] AI-1.18 Health probes + graceful shutdown + DB pool + backup
+
+**G1 acceptance:** RLS izolasiya · OIDC round-trip · migration up/down/up · pgmq publish→consume→DLQ · coverage ≥80% · OTel trace · tag v0.1.0-alpha.
+
+## Faza AI-0 — ✅ TAMAMLANDI (G0 APPROVED 2026-06-01)
+- 0.1-0.6, 0.8-0.11 ✅ (0.7 Flutter təxirdə). 13 servis dev stack; CI workflows; ADR 0001-0003/0010-0012.
 
 ## Bloklar / Həll olunmuş
-- ✅ Git identity · Python 3.12.12 (uv) · make 3.81 · Docker v29.4.3 · node v24.8 + pnpm 10.18
-- ✅ **İki ayrı posnet layihəsi:** bu = `adapter_*`; `posnet-help-center` = `posnet_*` (toxunma)
-- ✅ **Port toqquşmaları:** keycloak mgmt 9100, minio console 9101, caddy 8443
-- ✅ **pytest cov no-data** (CovReportWarning) düzəldildi — `filterwarnings` ignore
-- ⏳ **GitHub remote/repo** — AI-0.8 CI-nin işləməsi üçün insan qurmalıdır (G0 təsdiqindən sonra da OK)
-- ⏳ **CVE remediation** (ADR-0010): 3 CVE ignored — Faza AI-7 G7 gate-də məcburi
+- ✅ Toolchain: Python 3.12 (uv) · make · Docker v29.4.3 · node v24.8 + pnpm 10.18
+- ✅ İki ayrı posnet layihəsi (`adapter_*` vs help-center `posnet_*`); port toqquşmaları həll
+- ✅ pytest cov no-data fix; secrets baseline təmizləndi (lock/node_modules exclude)
+- ⏳ **GitHub remote/repo** — CI işləməsi üçün insan qurmalı (paralel)
+- ⏳ CVE remediation (ADR-0010): 3 CVE ignored — G7-də məcburi
 
 ## Gate vəziyyəti
-- **G0 (Bootstrap): 🟡 TƏSDİQ GÖZLƏYİR** (10/11 task; AI-0.7 təxirdə)
-- G1 (Foundation): növbəti — eventbus/outbox prioritet (hub onurğası)
+- **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
+- **G1 (Foundation): 🔵 CARİ** — eventbus/outbox prioritet (hub onurğası)
 - G2 (POS Core): canonical model "hub-a hazır"
-- **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil (mock→real Birmarket)
-- **G-V (Validasiya):** ADR-0012 — "online çıxış" dilimini retail satıcıya demo
-- G3-G8: ❄️ təxirdə (G-V sonrası); G7-də ADR-0010 starlette CVE məcburi
+- **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
+- **G-V (Validasiya):** retail satıcı demo (kill/continue)
+- G3-G8: ❄️ təxirdə (G-V sonrası); G7-də starlette CVE məcburi
 
 ---
 
-## G0 üçün İnsan addımları (təsdiqdən sonra / paralel)
-1. **GitHub:** private repo + org yarat → remote əlavə et → push → CI aktivləşir; `CODEOWNERS @OWNER` doldur
-2. (opsional) hosts faylı: `127.0.0.1 posnet.local keycloak.posnet.local ...` (Caddy domenləri üçün)
-3. AI-1 paralel insan trekləri: retail satıcı müsahibələri · Birmarket/Trendyol API access (D-002)
-
----
-
-## Endpointlər (lokal dev — `make up` / `docker compose up -d` sonrası)
+## Endpointlər (lokal dev — `docker compose up -d` sonrası)
 
 | Servis | Ünvan | Giriş |
 |---|---|---|
@@ -74,15 +77,10 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 | Redis | `localhost:6379` | — |
 | Vault | `localhost:8200` | token `dev-root-token` |
 | Keycloak | `localhost:8080` (`:9100/health`) | admin / admin |
-| Jaeger | `localhost:16686` | — |
-| Prometheus | `localhost:9090` | — |
-| Grafana | `localhost:3000` | admin / admin |
-| Loki | `localhost:3100` | — |
+| Jaeger / Prometheus / Grafana / Loki | `16686 / 9090 / 3000 / 3100` | grafana: admin/admin |
 | OTLP | `localhost:4317` (gRPC), `4318` (HTTP) | — |
-| Mailpit | `localhost:8025` (UI), `:1025` (SMTP) | — |
-| MinIO | `localhost:9000` (S3), `:9101` (console) | minioadmin / minioadmin |
+| Mailpit / MinIO | `8025` · `9000` (S3), `9101` (console) | minio: minioadmin/minioadmin |
 | Caddy (TLS) | `https://localhost:8443` | daxili CA |
-| admin-web (dev) | `pnpm --filter @posnet/admin-web dev` → `:5173` | — |
 
 ---
 
@@ -91,5 +89,5 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 | CVE | Paket | Status |
 |---|---|---|
 | CVE-2026-32274 | black | ✅ Düzəldildi |
-| CVE-2025-71176 | pytest | ⏳ Ignored (schemathesis 4.x) |
+| CVE-2025-71176 | pytest | ⏳ Ignored |
 | CVE-2025-62727 / PYSEC-2026-161 | starlette | ⏳ Ignored (**G7-də MƏCBURİ**) |
