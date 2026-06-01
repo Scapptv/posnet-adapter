@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-0 (BOOTSTRAP)
-**Cari task:** AI-0.3 (Docker stack: backend — postgres, redis, vault, keycloak)
-**Son commit:** `b5a720d` — fix: make verify + CVE remediation (AI-0.2 polish)
-**Son uğurlu verify:** 2026-06-01 (`make verify` exit 0: ruff ✅, mypy ✅, bandit ✅, pip-audit ✅ 2 ignored, detect-secrets ✅)
+**Cari task:** AI-0.4 (Docker stack: observability — jaeger, prometheus, grafana, loki, otel)
+**Son commit:** `e32670f` — docs: AI-ROADMAP v4.0 + CLAUDE/README hub modelinə uyğunlaşdırıldı
+**Son uğurlu verify:** 2026-06-01 (`make verify` exit 0); AI-0.3 stack healthy (4/4 servis)
 **Vəziyyət:** IN_PROGRESS
 
 ---
@@ -29,28 +29,25 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 - [x] **AI-0.1** — Monorepo skeleton + Git init (commit: `0a290ad`) — 2026-06-01
   - 58 fayl: services/ libs/ apps/ mocks/ infra/ tests/ docs/ scripts/ .github/
 - [x] **AI-0.2** — Python tooling (commit-lər: `67bc8e1`, `a25a339`, `b5a720d`) — 2026-06-01
-  - pyproject.toml (50+ deps + tool configs)
-  - Makefile (21 target — `make verify` exit 0)
-  - .pre-commit-config.yaml (17 hook, hamısı pass)
-  - .yamllint.yml, .env.example, .secrets.baseline, uv.lock, .python-version
-  - libs/ snake_case rename (Python paket adı qaydası)
-  - **make Win11-də quraşdırıldı** (`winget install GnuWin32.Make` → GNU Make 3.81)
-  - **CVE remediation:** black 26.x (CVE fix); pytest + starlette CVE-ləri müvəqqəti ignore + **ADR-0010**
-  - Faza AI-7 G7 gate-də starlette CVE həll məcburi
+  - pyproject.toml (50+ deps + tool configs), Makefile (21 target), .pre-commit (17 hook)
+  - **CVE remediation:** black 26.x; pytest + starlette CVE müvəqqəti ignore + **ADR-0010**
+- [x] **AI-0.3** — Docker stack: backend (postgres+pgmq, redis, vault, keycloak) — 2026-06-01
+  - `docker-compose.yml` (name: **adapter**) + `infra/postgres/init.sql` + `infra/keycloak/realm-posnet.json`
+  - **pgmq image düzəlişi:** `ghcr.io/pgmq/pg16-pgmq` (standart postgres-də pgmq YOXDUR)
+  - Konteynerlər **`adapter_*`** (help-center `posnet_*`-dən AYRI; port 5432/6379/8200/8080/9100)
+  - Acceptance ✅: 4/4 healthy · pgmq 1.11.1 + pg_trgm · vault unsealed (v1.15.6) · keycloak /health/ready 200 · redis PONG
 
 ## İcrada
-- [ ] **AI-0.3** — Docker stack: backend (postgres 16-alpine, redis 7-alpine, vault dev mode, keycloak 25.x)
-  - Planlandı, başlanmayıb
-  - **Preflight tələbi:** Docker Desktop quraşdırılmış və `docker info` işləyir
+- [ ] **AI-0.4** — Docker stack: observability (jaeger, prometheus, grafana, loki, otel-collector)
+  - mövcud `docker-compose.yml`-ə əlavə + `infra/{prometheus,loki,otel,grafana}` config
 
-## Növbəti (FAZA AI-0 qalan — AI-ROADMAP.md §19)
-- [ ] AI-0.4 — Docker stack: observability (jaeger, prometheus, grafana, loki, otel-collector)
+## Növbəti (FAZA AI-0 qalan — AI-ROADMAP.md §14)
 - [ ] AI-0.5 — Docker stack: dev infra (mailpit, minio, caddy + mkcert TLS)
 - [ ] AI-0.6 — Frontend tooling (Node + pnpm workspace + shared eslint/prettier)
-- [ ] AI-0.7 — Flutter tooling skeleton (preflight: Flutter 3.24+ quraşdırılmalı — gec mərhələdə də OK)
+- [ ] AI-0.7 — Flutter tooling skeleton (preflight: Flutter 3.24+ — gec mərhələdə də OK)
 - [ ] AI-0.8 — GitHub Actions CI (lint + test + security + build)
-- [ ] AI-0.9 — ADR + Runbook templates + ilk 3 ADR (stack, monorepo, secrets) — **ADR-0010 artıq mövcuddur**
-- [ ] AI-0.10 — CLAUDE.md tamamla (v1.1 mövcuddur)
+- [ ] AI-0.9 — ADR + Runbook templates (ADR-0010/0011/0012 artıq mövcuddur)
+- [ ] AI-0.10 — CLAUDE.md tamamla (hub modelinə uyğunlaşdırıldı ✅)
 - [ ] AI-0.11 — Smoke test: `make bootstrap`
 
 ## Açıq Suallar (İnsan üçün)
@@ -59,12 +56,12 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 ## Bloklar / Həll olunmuş
 - ✅ Git identity (`huseyn.ceferov93@gmail.com` / `Huseyn` lokal repo, 2026-06-01)
 - ✅ Python 3.12.12 (uv vasitəsi ilə, 2026-06-01)
-- ✅ Python paket adları tire qadağası (libs snake_case, services hyphen)
 - ✅ **make Win11 quraşdırılması** (`winget install GnuWin32.Make`, 2026-06-01)
+- ✅ **İki ayrı posnet layihəsi aydınlaşdırıldı:** bu layihə = `adapter_*` konteynerlər; `posnet-help-center` = `posnet_*` (pgvector+meili, toxunma)
 - ⏳ **CVE remediation** (ADR-0010): 3 CVE müvəqqəti ignored — Faza AI-7 G7 gate-də məcburi həll
 
 ## Gate vəziyyəti
-- G0 (Bootstrap): ⏳ Faza AI-0 sonu (2/11 task tamamlanıb)
+- G0 (Bootstrap): ⏳ Faza AI-0 sonu (**3/11** task tamamlanıb)
 - G1 (Foundation): planlandı — eventbus/outbox prioritet (hub onurğası)
 - G2 (POS Core): planlandı — canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** 🆕 ADR-0012 — MVP-yə daxil (mock→real Birmarket)
@@ -77,7 +74,7 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 - [x] Python 3.12.12 quraşdırıldı (uv 2026-06-01)
 - [x] uv quraşdırıldı (sistem)
 - [x] **make 3.81 quraşdırıldı** (winget GnuWin32, 2026-06-01)
-- [ ] **Docker Desktop quraşdırılmalı və `docker info` işləməli** ← **AI-0.3 üçün KRİTİK**
+- [x] **Docker Desktop işləyir** (v29.4.3 — AI-0.3 stack qaldırıldı ✅)
 - [ ] Node.js 20 LTS (AI-0.6 öncəsi)
 - [ ] Flutter 3.24+ + fvm (AI-0.7 öncəsi — gec OK)
 - [ ] mkcert + `mkcert -install` (AI-0.5 öncəsi)

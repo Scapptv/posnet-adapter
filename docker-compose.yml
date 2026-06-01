@@ -1,0 +1,79 @@
+# Posnet — POS-anchored İnteqrasiya Hub (adapter layihəsi)
+# AI-0.3: backend substrat (postgres+pgmq, redis, vault, keycloak)
+# QEYD: posnet-help-center AYRI layihədir (posnet_* konteynerlər, port 5433/6380/7700).
+# Bu adapter layihəsi → `adapter_*` konteynerlər + standart port 5432/6379/8200/8080.
+name: adapter
+
+services:
+  postgres:
+    # pgmq + pg_trgm üçün xüsusi image (standart postgres-də pgmq YOXDUR)
+    image: ghcr.io/pgmq/pg16-pgmq:latest
+    container_name: adapter_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-posnet}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-posnet_dev_pw}  # pragma: allowlist secret
+      POSTGRES_DB: ${POSTGRES_DB:-posnet_core}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - adapter_pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-posnet} -d ${POSTGRES_DB:-posnet_core}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: adapter_redis
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - adapter_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: adapter_vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_DEV_ROOT_TOKEN_ID:-dev-root-token}  # pragma: allowlist secret
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://127.0.0.1:8200
+    ports:
+      - "${VAULT_PORT:-8200}:8200"
+    command: ["server", "-dev"]
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    container_name: adapter_keycloak
+    command: ["start-dev"]
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}  # pragma: allowlist secret
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+      - "9100:9000"  # management/health (host 9100 → MinIO 9000 ilə toqquşmasın)
+    # Keycloak image (ubi-micro) curl/bash daxil etmir → in-container healthcheck etibarsız.
+    # Health host-dan yoxlanılır: curl http://localhost:9100/health/ready
+    restart: unless-stopped
+
+volumes:
+  adapter_pgdata:
+  adapter_redisdata:
