@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-0 (BOOTSTRAP)
-**Cari task:** AI-0.8 (GitHub Actions CI — workflow faylları; GitHub push-da işləyəcək)
-**Son commit:** `cdaf54e` — feat(infra): AI-0.5 dev infra (mailpit, minio, caddy)
-**Son uğurlu verify:** 2026-06-01; AI-0.6 frontend tooling işlək (lint + typecheck + Vite build ✅)
+**Cari task:** AI-0.9 (ADR + Runbook templates — ADR-0010/0011/0012 artıq var)
+**Son commit:** `184379b` — feat(frontend): AI-0.6 frontend tooling
+**Son uğurlu verify:** 2026-06-01; AI-0.8 CI workflow-ları yazıldı (lokal CI-equivalent yaşıl)
 **Vəziyyət:** IN_PROGRESS
 
 ---
@@ -28,22 +28,21 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 ## Tamamlanmış task-lar
 - [x] **AI-0.1** — Monorepo skeleton + Git init — 2026-06-01
 - [x] **AI-0.2** — Python tooling (pyproject + Makefile + pre-commit; ADR-0010 CVE) — 2026-06-01
-- [x] **AI-0.3** — Docker backend (postgres+pgmq, redis, vault, keycloak) — `adapter_*` konteynerlər — 2026-06-01
+- [x] **AI-0.3** — Docker backend (postgres+pgmq, redis, vault, keycloak) — `adapter_*` — 2026-06-01
 - [x] **AI-0.4** — Observability (otel, jaeger, prometheus, loki, grafana); OTLP→Jaeger E2E ✅ — 2026-06-01
 - [x] **AI-0.5** — Dev infra (mailpit, minio + bucket-lar, caddy daxili-TLS) — 2026-06-01
-- [x] **AI-0.6** — Frontend tooling — 2026-06-01
-  - `pnpm-workspace.yaml` + root `package.json` (eslint 9 flat, prettier, tsconfig.base)
-  - **`apps/admin-web`** — Vite + React 18 + TS skeleton (hub merchant paneli; real impl AI-2.7)
-  - `apps/storefront` ❄️ frozen (ADR-0012); husky yox (pre-commit var)
-  - Acceptance ✅: `pnpm install` · `pnpm -r lint` təmiz · `pnpm -r typecheck` təmiz · **Vite build keçdi**
+- [x] **AI-0.6** — Frontend tooling (pnpm workspace + admin-web Vite/React/TS; build ✅) — 2026-06-01
+- [x] **AI-0.8** — GitHub Actions CI — 2026-06-01
+  - `.github/workflows/{lint,test,security,build}.yml` + `CODEOWNERS` (make target-ləri ilə DRY)
+  - pytest cov no-data fix (`filterwarnings` → CovReportWarning ignore; exit 3 → 5)
+  - **Lokal CI-equivalent yaşıl:** yamllint · ruff · mypy · bandit · pip-audit · pytest(5) · eslint · tsc
+  - ⚠️ GitHub-da yalnız push-dan sonra işləyəcək (remote/repo insan qurur); `CODEOWNERS` `@OWNER` doldurulmalı
 
 ## İcrada
-- [ ] **AI-0.8** — GitHub Actions CI (lint + test + security + build workflow-ları)
-  - Faylları yazıram (`.github/workflows/`); **GitHub-da yalnız push-dan sonra işləyəcək** (remote yox)
+- [ ] **AI-0.9** — ADR + Runbook templates (`docs/adr/_template.md`, `docs/runbooks/_template.md`)
 
 ## Növbəti (FAZA AI-0 qalan — AI-ROADMAP.md §14)
-- [ ] AI-0.7 — Flutter tooling skeleton — ⏸️ **TƏXİRƏ SALINDI** (gec OK; hub marketplace-first MVP-də kassir app sonra)
-- [ ] AI-0.9 — ADR + Runbook templates (ADR-0010/0011/0012 artıq mövcuddur)
+- [ ] AI-0.7 — Flutter tooling skeleton — ⏸️ **TƏXİRƏ SALINDI** (gec OK; kassir app sonra)
 - [ ] AI-0.10 — CLAUDE.md tamamla (hub modelinə uyğunlaşdırıldı ✅)
 - [ ] AI-0.11 — Smoke test: `make bootstrap`
 
@@ -51,14 +50,15 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 (yox)
 
 ## Bloklar / Həll olunmuş
-- ✅ Git identity · Python 3.12.12 (uv) · make 3.81 · Docker Desktop v29.4.3 · **node v24.8 + pnpm 10.18**
+- ✅ Git identity · Python 3.12.12 (uv) · make 3.81 · Docker Desktop v29.4.3 · node v24.8 + pnpm 10.18
 - ✅ **İki ayrı posnet layihəsi:** bu = `adapter_*`; `posnet-help-center` = `posnet_*` (toxunma)
 - ✅ **Port toqquşmaları həll:** keycloak mgmt 9100, minio console 9101, caddy 8443
-- ✅ **pnpm 10 esbuild build script** icazələndi (`pnpm.onlyBuiltDependencies`)
+- ✅ **pytest cov no-data** (CovReportWarning) düzəldildi — `filterwarnings`-ə ignore əlavə
 - ⏳ **CVE remediation** (ADR-0010): 3 CVE müvəqqəti ignored — Faza AI-7 G7 gate-də məcburi həll
+- ⏳ **GitHub remote/repo** — AI-0.8 CI-nin işləməsi üçün insan qurmalıdır
 
 ## Gate vəziyyəti
-- G0 (Bootstrap): ⏳ Faza AI-0 sonu (**6/11** task tamamlanıb)
+- G0 (Bootstrap): ⏳ Faza AI-0 sonu (**7/11** task tamamlanıb)
 - G1 (Foundation): planlandı — eventbus/outbox prioritet (hub onurğası)
 - G2 (POS Core): planlandı — canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** 🆕 ADR-0012 — MVP-yə daxil (mock→real Birmarket)
@@ -68,10 +68,10 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 ---
 
 ## Preflight Checklist (İnsan)
-- [x] Python 3.12.12 (uv) · uv · make 3.81 · Docker Desktop v29.4.3 · **node v24.8 + pnpm 10.18** ✅
+- [x] Python 3.12.12 (uv) · uv · make 3.81 · Docker Desktop v29.4.3 · node v24.8 + pnpm 10.18 ✅
 - [x] ~~mkcert~~ — lazım deyil (Caddy daxili-CA TLS)
+- [ ] **GitHub hesabı + private org + remote + SSH key** (AI-0.8 CI işləməsi üçün) ← növbəti insan addımı
 - [ ] Flutter 3.24+ + fvm (AI-0.7 — təxirdə, gec OK)
-- [ ] GitHub hesabı + private org + SSH key + remote (AI-0.8 işləməsi üçün)
 - [ ] VS Code + Claude Code extension hazır
 
 ---

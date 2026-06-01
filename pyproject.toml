@@ -220,6 +220,8 @@ filterwarnings = [
     # AI-0-da test yoxdur → coverage no-data warning; AI-1.1-də qaldırılacaq
     "ignore::coverage.exceptions.CoverageWarning",
     "ignore:.*No data was collected.*:UserWarning",
+    # pytest-cov CovReportWarning (no-data) — test gələndə (AI-1.1) avtomatik yox olur
+    "ignore:Failed to generate report:",
 ]
 
 [tool.coverage.run]
