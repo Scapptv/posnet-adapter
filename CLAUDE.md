@@ -6,8 +6,11 @@ Bu fayl Claude Code tərəfindən hər sessiya başında avtomatik yüklənir. L
 
 ## Layihə
 
-**Ad:** Posnet — Qlobal Multi-POS və Çoxkanallı İnteqrasiya Platforması
-**Tip:** Multi-tenant SaaS, modular monolit, event-driven
+**Ad:** Posnet — POS-anchored omnichannel İnteqrasiya Hub
+**Model:** POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/booking portallarına çıxarır (TSoft/Entegra/ChannelEngine tipli). **Adapterlər = məhsulun CORE-u**, periferik deyil.
+**Beachhead:** Azərbaycan · pərakəndə (market/butik) · ilk kanal = Birmarket/Trendyol (marketplace)
+**Strateji:** ADR-0011 (re-scope) + ADR-0012 (hub reframe). Aktiv yol: AI-0→1→2→**2.5 (adapter framework)**→**G-V validasiya**. AI-3…AI-7 dondurulub.
+**Tip:** Multi-tenant SaaS, modular monolit, event-driven, adapter-first
 **Hədəf bazarlar:** Azərbaycan (1-ci) → Türkiyə (2-ci) → Qlobal
 **İcra modeli:** AI-autonomous (1 Claude Opus + 1 insan operator)
 **Dil:** Sənədlər və commit mesajları Azərbaycanca; kod İngilis; istisna: bəzi domain termin-lər (Azərbaycanca: vardiya, çek)
@@ -20,10 +23,10 @@ Layihədə yalnız **4 fayl** mövcuddur (bütün referans məzmun vahid sənəd
 
 1. **Bu fayl (CLAUDE.md)** — qaydalar
 2. **STATUS.md** — cari vəziyyət, cari task, son commit, açıq suallar
-3. **AI-ROADMAP.md** — vahid istinad (yalnız cari faza bölməsini oxu, bütün 46 bölmə yox)
+3. **AI-ROADMAP.md** — vahid istinad (v4.0, hub modeli; yalnız cari faza bölməsini oxu)
 4. **HUMAN-GATES.md** — gate vəziyyəti, açıq suallar
 
-**Heç bir başqa `.md` sənəd yoxdur** — köhnə 11 sənəd (faza planları, JIRA backlog, sprint plan, TDD, master plan) silindi və hər birinin texniki dəyəri AI-ROADMAP.md v3.0-a inteqra olundu. Əgər başqa `*.md` görsən, soruşmadan yaratma.
+**Heç bir başqa top-level `.md` sənəd yoxdur** (istisna: `docs/adr/NNNN-*.md` — ADR-lər) — köhnə referans sənədlərin texniki dəyəri AI-ROADMAP.md v4.0-a inteqra olundu. Əgər başqa top-level `*.md` görsən, soruşmadan yaratma.
 
 ---
 
