@@ -216,6 +216,11 @@ markers = [
 filterwarnings = [
     "error",
     "ignore::DeprecationWarning:passlib.*",
+    # testcontainers import-da deprecation atır (3rd-party) — ignore
+    "ignore::DeprecationWarning:testcontainers.*",
+    "ignore:The @wait_container_is_ready decorator is deprecated:DeprecationWarning",
+    "ignore::DeprecationWarning:jsonschema",
+    "ignore:jsonschema.exceptions.RefResolutionError is deprecated:DeprecationWarning",
     "ignore::PendingDeprecationWarning",
     # AI-0-da test yoxdur → coverage no-data warning; AI-1.1-də qaldırılacaq
     "ignore::coverage.exceptions.CoverageWarning",

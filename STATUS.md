@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.1 (Test infra + coverage gate — TDD foundation)
-**Son commit:** `c04f021` — chore: .secrets.baseline təmizlə
-**Son uğurlu verify:** 2026-06-01; AI-0 bootstrap done (13 servis, smoke yaşıl)
+**Cari task:** AI-1.2 (libs/common — logger, errors, types/Money, request-id)
+**Son commit:** `a45ea38` — docs: G0 APPROVED — AI-1 başladı
+**Son uğurlu verify:** 2026-06-01; AI-1.1 test harness yaşıl (unit + testcontainers integration)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -28,8 +28,10 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 **Məqsəd:** Auth + multi-tenant + RLS + DB + **eventbus/outbox (hub onurğası)** + observability.
 **Middleware sırası:** RequestId → Logging → Tracing → Auth → TenantContext(RLS) → RateLimit → ErrorHandler.
 
-- [ ] **AI-1.1** Test infra + coverage gate (conftest + testcontainers + smoke) ← **CARİ**
-- [ ] AI-1.2 `libs/common` (logger, errors, types/Money, request-id)
+- [x] **AI-1.1** Test infra (conftest + testcontainers Postgres/Redis + harness; unit+integration ✅) — 2026-06-01
+  - Coverage gate hələ 0 (app kodu yox) → AI-1.2 libs/common gələndə 80%-ə qalxır
+  - pytest filterwarnings: testcontainers + jsonschema 3rd-party deprecation ignore
+- [ ] **AI-1.2** `libs/common` (logger, errors, types/Money, request-id) ← **CARİ**
 - [ ] AI-1.3 Vault setup + `get_secret()` helper
 - [ ] AI-1.4 `libs/canonical_model` skeleton (hub — erkən)
 - [ ] AI-1.5 SQLAlchemy models + Alembic + migration 0001 (identity)
