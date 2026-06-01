@@ -1,0 +1,240 @@
+[project]
+name = "posnet"
+version = "0.1.0a0"
+description = "Posnet — Qlobal Multi-POS və Çoxkanallı İnteqrasiya Platforması"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Posnet Platform" }]
+
+dependencies = [
+    # ---- Web framework ----
+    "fastapi>=0.110.0,<0.120.0",
+    "uvicorn[standard]>=0.27.0,<1.0",
+    "pydantic>=2.6.0,<3.0",
+    "pydantic-settings>=2.2.0,<3.0",
+    # ---- Database ----
+    "sqlalchemy>=2.0.27,<3.0",
+    "alembic>=1.13.0,<2.0",
+    "psycopg[binary,pool]>=3.1.18,<4.0",
+    "asyncpg>=0.29.0,<1.0",
+    # ---- Cache / queue ----
+    "redis[hiredis]>=5.0.0,<6.0",
+    "tembo-pgmq-python>=0.8.0,<1.0",
+    # ---- Auth ----
+    "python-jose[cryptography]>=3.3.0,<4.0",
+    "httpx>=0.27.0,<1.0",
+    "hvac>=2.1.0,<3.0",
+    # ---- Observability ----
+    "opentelemetry-api>=1.24.0,<2.0",
+    "opentelemetry-sdk>=1.24.0,<2.0",
+    "opentelemetry-exporter-otlp>=1.24.0,<2.0",
+    "opentelemetry-instrumentation-fastapi>=0.45b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.45b0",
+    "opentelemetry-instrumentation-redis>=0.45b0",
+    "opentelemetry-instrumentation-httpx>=0.45b0",
+    "prometheus-client>=0.20.0,<1.0",
+    "prometheus-fastapi-instrumentator>=7.0.0,<8.0",
+    "structlog>=24.1.0,<25.0",
+    # ---- Rate limit / security ----
+    "slowapi>=0.1.9,<1.0",
+    # ---- i18n ----
+    "babel>=2.14.0,<3.0",
+    # ---- Utilities ----
+    "python-dateutil>=2.9.0,<3.0",
+    "orjson>=3.9.0,<4.0",
+    "tenacity>=8.2.0,<9.0",
+    "pybreaker>=1.0.0,<2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # ---- Test ----
+    "pytest>=8.0.0,<9.0",
+    "pytest-asyncio>=0.23.0,<1.0",
+    "pytest-cov>=5.0.0,<6.0",
+    "pytest-rerunfailures>=14.0,<15.0",
+    "pytest-xdist>=3.5.0,<4.0",
+    "testcontainers[postgres,redis]>=4.0.0,<5.0",
+    "hypothesis>=6.100.0,<7.0",
+    "schemathesis>=3.27.0,<4.0",
+    "locust>=2.24.0,<3.0",
+    "respx>=0.21.0,<1.0",
+    # ---- Type / lint / format ----
+    "mypy>=1.10.0,<2.0",
+    "ruff>=0.4.0,<1.0",
+    "black>=24.3.0,<25.0",
+    # ---- Security ----
+    "bandit>=1.7.8,<2.0",
+    "detect-secrets>=1.5.0,<2.0",
+    "pip-audit>=2.7.0,<3.0",
+    # ---- Dev tools ----
+    "pre-commit>=3.7.0,<4.0",
+    "ipython>=8.20.0",
+]
+
+[build-system]
+requires = ["hatchling>=1.21.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["services", "libs"]
+
+# ---------- uv ----------
+[tool.uv]
+managed = true
+
+# ---------- ruff ----------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "*.egg-info",
+    "apps/pos-flutter",
+    "apps/admin-web",
+    "apps/storefront",
+    "infra/terraform",
+    "infra/helm",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "DTZ",  # flake8-datetimez (naive datetime ban)
+    "PIE",  # flake8-pie
+    "T20",  # flake8-print (no print in prod)
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific
+    "ASYNC", # async best practices
+    "S",    # bandit subset
+]
+ignore = [
+    "S101",  # assert (pytest uses it)
+    "B008",  # function call in default argument (FastAPI Depends)
+    "E501",  # line too long (formatter handles)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S", "DTZ"]
+"services/*/tests/**/*.py" = ["S", "DTZ"]
+"scripts/**/*.py" = ["T20"]  # scripts may print
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ---------- black (formatter — ruff format alternative) ----------
+[tool.black]
+target-version = ["py312"]
+line-length = 100
+extend-exclude = '''
+/(
+    \.venv
+  | build
+  | dist
+  | apps/pos-flutter
+  | apps/admin-web
+  | apps/storefront
+)/
+'''
+
+# ---------- mypy ----------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false  # FastAPI decorators
+no_implicit_optional = true
+strict_equality = true
+files = ["services", "libs"]
+exclude = [
+    "^build/",
+    "^dist/",
+    "^apps/",
+    "^infra/terraform/",
+    "^infra/helm/",
+]
+
+[[tool.mypy.overrides]]
+module = ["testcontainers.*", "pgmq.*", "hvac.*", "pybreaker.*"]
+ignore_missing_imports = true
+
+# ---------- pytest ----------
+[tool.pytest.ini_options]
+minversion = "8.0"
+asyncio_mode = "auto"
+testpaths = ["tests", "services", "libs"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=services",
+    "--cov=libs",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml:coverage.xml",
+    "--cov-fail-under=80",
+]
+markers = [
+    "unit: pure unit tests (no IO)",
+    "integration: integration tests (real DB/Redis/pgmq via testcontainers)",
+    "contract: contract tests (schemathesis/Pact)",
+    "e2e: end-to-end tests (Playwright + real services)",
+    "load: load tests (k6/locust)",
+    "smoke: smoke tests (critical path quick verification)",
+    "slow: tests that take > 5s",
+    "flaky: known-flaky tests (auto-rerun)",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:passlib.*",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["services", "libs"]
+omit = [
+    "*/__init__.py",
+    "*/tests/*",
+    "*/test_*.py",
+    "*/migrations/*",
+    "*/alembic/*",
+]
+
+[tool.coverage.report]
+precision = 1
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@overload",
+    "@abstractmethod",
+]
+
+# ---------- bandit ----------
+[tool.bandit]
+exclude_dirs = ["tests", "services/*/tests", "apps", "infra/terraform", "infra/helm", ".venv"]
+skips = ["B101"]  # assert (pytest)

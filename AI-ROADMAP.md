@@ -224,13 +224,13 @@ posnet/
 │   ├── booking-svc/                          ← AI-7+
 │   └── notification-svc/                     ← AI-2+: email/SMS/push (mock)
 │
-├── libs/                                     ← Servislər arası ortaq
-│   ├── canonical-model/                      ← Pydantic schemalar
+├── libs/                                     ← Servislər arası ortaq (snake_case — Python paket)
+│   ├── canonical_model/                      ← Pydantic schemalar
 │   ├── eventbus/                             ← pgmq + outbox + DLQ
 │   ├── auth/                                 ← Keycloak JWT + JWKS cache
 │   ├── observability/                        ← OTel + Prometheus + Loki
 │   ├── i18n/                                 ← Babel
-│   ├── feature-flags/                        ← DB-backed per-tenant
+│   ├── feature_flags/                        ← DB-backed per-tenant
 │   └── common/                               ← Logger, errors, types, request-id
 │
 ├── apps/

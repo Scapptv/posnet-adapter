@@ -37,7 +37,7 @@ env/
 ENV/
 env.bak/
 venv.bak/
-.python-version
+# .python-version layihə Python versiyasını pin edir (uv/pyenv) — commit olunur
 
 # ---- uv ----
 .uv/
