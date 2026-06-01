@@ -1,10 +1,12 @@
 # Posnet — POS-anchored İnteqrasiya Hub (adapter layihəsi)
 # AI-0.3: backend substrat (postgres+pgmq, redis, vault, keycloak)
+# AI-0.4: observability (otel-collector, jaeger, prometheus, loki, grafana)
 # QEYD: posnet-help-center AYRI layihədir (posnet_* konteynerlər, port 5433/6380/7700).
-# Bu adapter layihəsi → `adapter_*` konteynerlər + standart port 5432/6379/8200/8080.
+# Bu adapter layihəsi → `adapter_*` konteynerlər + standart portlar.
 name: adapter
 
 services:
+  # ---- Backend substrat (AI-0.3) ----
   postgres:
     # pgmq + pg_trgm üçün xüsusi image (standart postgres-də pgmq YOXDUR)
     image: ghcr.io/pgmq/pg16-pgmq:latest
@@ -74,6 +76,76 @@ services:
     # Health host-dan yoxlanılır: curl http://localhost:9100/health/ready
     restart: unless-stopped
 
+  # ---- Observability (AI-0.4) ----
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    container_name: adapter_otel_collector
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./infra/otel/otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"  # OTLP gRPC (app telemetriya)
+      - "4318:4318"  # OTLP HTTP
+    depends_on:
+      - jaeger
+      - loki
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: adapter_jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # Jaeger UI
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: adapter_prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - adapter_prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: adapter_loki
+    command: ["-config.file=/etc/loki/config.yaml"]
+    volumes:
+      - ./infra/loki/loki-config.yaml:/etc/loki/config.yaml:ro
+      - adapter_loki_data:/loki
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: adapter_grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}  # pragma: allowlist secret
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_USERS_DEFAULT_THEME: dark
+    volumes:
+      - ./infra/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - adapter_grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+    restart: unless-stopped
+
 volumes:
   adapter_pgdata:
   adapter_redisdata:
+  adapter_prometheus_data:
+  adapter_loki_data:
+  adapter_grafana_data:

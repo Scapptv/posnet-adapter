@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-0 (BOOTSTRAP)
-**Cari task:** AI-0.4 (Docker stack: observability — jaeger, prometheus, grafana, loki, otel)
-**Son commit:** `e32670f` — docs: AI-ROADMAP v4.0 + CLAUDE/README hub modelinə uyğunlaşdırıldı
-**Son uğurlu verify:** 2026-06-01 (`make verify` exit 0); AI-0.3 stack healthy (4/4 servis)
+**Cari task:** AI-0.5 (Docker stack: dev infra — mailpit, minio, caddy + mkcert TLS)
+**Son commit:** `07c503c` — feat(infra): AI-0.3 Docker stack
+**Son uğurlu verify:** 2026-06-01; AI-0.4 observability işlək (9/9 servis, OTLP→Jaeger E2E ✅)
 **Vəziyyət:** IN_PROGRESS
 
 ---
@@ -27,22 +27,22 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Tamamlanmış task-lar
 - [x] **AI-0.1** — Monorepo skeleton + Git init (commit: `0a290ad`) — 2026-06-01
-  - 58 fayl: services/ libs/ apps/ mocks/ infra/ tests/ docs/ scripts/ .github/
-- [x] **AI-0.2** — Python tooling (commit-lər: `67bc8e1`, `a25a339`, `b5a720d`) — 2026-06-01
-  - pyproject.toml (50+ deps + tool configs), Makefile (21 target), .pre-commit (17 hook)
-  - **CVE remediation:** black 26.x; pytest + starlette CVE müvəqqəti ignore + **ADR-0010**
+- [x] **AI-0.2** — Python tooling (pyproject + Makefile + pre-commit; ADR-0010 CVE) — 2026-06-01
 - [x] **AI-0.3** — Docker stack: backend (postgres+pgmq, redis, vault, keycloak) — 2026-06-01
-  - `docker-compose.yml` (name: **adapter**) + `infra/postgres/init.sql` + `infra/keycloak/realm-posnet.json`
-  - **pgmq image düzəlişi:** `ghcr.io/pgmq/pg16-pgmq` (standart postgres-də pgmq YOXDUR)
-  - Konteynerlər **`adapter_*`** (help-center `posnet_*`-dən AYRI; port 5432/6379/8200/8080/9100)
-  - Acceptance ✅: 4/4 healthy · pgmq 1.11.1 + pg_trgm · vault unsealed (v1.15.6) · keycloak /health/ready 200 · redis PONG
+  - `docker-compose.yml` (name: **adapter**) + `infra/postgres/init.sql` + keycloak realm placeholder
+  - **pgmq image düzəlişi:** `ghcr.io/pgmq/pg16-pgmq` · Konteynerlər **`adapter_*`** (help-center `posnet_*`-dən AYRI)
+  - Funksional ✅: pgmq e2e (send/read) · pg_trgm · vault kv · keycloak OIDC token
+- [x] **AI-0.4** — Docker stack: observability (otel-collector, jaeger, prometheus, loki, grafana) — 2026-06-01
+  - `infra/{otel,prometheus,loki,grafana}` config; docker-compose 9 servis cəmi
+  - Pipeline: app → **OTLP(4317/4318)** → collector → Jaeger(trace) / Prometheus(metric) / Loki(log)
+  - Acceptance ✅: jaeger UI 200 · prometheus healthy · grafana ok (3 datasource provisioned) · loki ready · **OTLP→Jaeger E2E test keçdi**
 
 ## İcrada
-- [ ] **AI-0.4** — Docker stack: observability (jaeger, prometheus, grafana, loki, otel-collector)
-  - mövcud `docker-compose.yml`-ə əlavə + `infra/{prometheus,loki,otel,grafana}` config
+- [ ] **AI-0.5** — Docker stack: dev infra (mailpit, minio, caddy + mkcert TLS)
+  - docker-compose-ə əlavə + `infra/caddy/Caddyfile` + MinIO bucket-lar
+  - **Preflight:** mkcert + `mkcert -install` (TLS üçün)
 
 ## Növbəti (FAZA AI-0 qalan — AI-ROADMAP.md §14)
-- [ ] AI-0.5 — Docker stack: dev infra (mailpit, minio, caddy + mkcert TLS)
 - [ ] AI-0.6 — Frontend tooling (Node + pnpm workspace + shared eslint/prettier)
 - [ ] AI-0.7 — Flutter tooling skeleton (preflight: Flutter 3.24+ — gec mərhələdə də OK)
 - [ ] AI-0.8 — GitHub Actions CI (lint + test + security + build)
@@ -54,14 +54,12 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 (yox)
 
 ## Bloklar / Həll olunmuş
-- ✅ Git identity (`huseyn.ceferov93@gmail.com` / `Huseyn` lokal repo, 2026-06-01)
-- ✅ Python 3.12.12 (uv vasitəsi ilə, 2026-06-01)
-- ✅ **make Win11 quraşdırılması** (`winget install GnuWin32.Make`, 2026-06-01)
+- ✅ Git identity · Python 3.12.12 (uv) · make 3.81 (winget GnuWin32)
 - ✅ **İki ayrı posnet layihəsi aydınlaşdırıldı:** bu layihə = `adapter_*` konteynerlər; `posnet-help-center` = `posnet_*` (pgvector+meili, toxunma)
 - ⏳ **CVE remediation** (ADR-0010): 3 CVE müvəqqəti ignored — Faza AI-7 G7 gate-də məcburi həll
 
 ## Gate vəziyyəti
-- G0 (Bootstrap): ⏳ Faza AI-0 sonu (**3/11** task tamamlanıb)
+- G0 (Bootstrap): ⏳ Faza AI-0 sonu (**4/11** task tamamlanıb)
 - G1 (Foundation): planlandı — eventbus/outbox prioritet (hub onurğası)
 - G2 (POS Core): planlandı — canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** 🆕 ADR-0012 — MVP-yə daxil (mock→real Birmarket)
@@ -71,16 +69,29 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 ---
 
 ## Preflight Checklist (İnsan)
-- [x] Python 3.12.12 quraşdırıldı (uv 2026-06-01)
-- [x] uv quraşdırıldı (sistem)
-- [x] **make 3.81 quraşdırıldı** (winget GnuWin32, 2026-06-01)
-- [x] **Docker Desktop işləyir** (v29.4.3 — AI-0.3 stack qaldırıldı ✅)
+- [x] Python 3.12.12 (uv) · uv · make 3.81 quraşdırıldı
+- [x] **Docker Desktop işləyir** (v29.4.3 — AI-0.3/0.4 stack qaldırıldı ✅)
+- [ ] mkcert + `mkcert -install` (AI-0.5 öncəsi — TLS)
 - [ ] Node.js 20 LTS (AI-0.6 öncəsi)
 - [ ] Flutter 3.24+ + fvm (AI-0.7 öncəsi — gec OK)
-- [ ] mkcert + `mkcert -install` (AI-0.5 öncəsi)
-- [ ] GitHub hesabı + private organization (AI-0.8 öncəsi)
-- [ ] SSH key GitHub-a əlavə (AI-0.8 üçün)
+- [ ] GitHub hesabı + private org + SSH key (AI-0.8 öncəsi)
 - [ ] VS Code + Claude Code extension hazır
+
+---
+
+## Endpointlər (lokal dev — `make up` sonrası)
+
+| Servis | Ünvan | Giriş |
+|---|---|---|
+| Postgres+pgmq | `localhost:5432` | posnet / posnet_dev_pw / posnet_core |
+| Redis | `localhost:6379` | — |
+| Vault | `localhost:8200` | token `dev-root-token` |
+| Keycloak | `localhost:8080` (`:9100/health`) | admin / admin |
+| Jaeger UI | `localhost:16686` | — |
+| Prometheus | `localhost:9090` | — |
+| Grafana | `localhost:3000` | admin / admin |
+| Loki | `localhost:3100` | — |
+| OTLP (app→collector) | `localhost:4317` (gRPC), `4318` (HTTP) | — |
 
 ---
 
