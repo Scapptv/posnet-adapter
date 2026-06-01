@@ -12,13 +12,30 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 |---|---|---|---|---|
 | G0 — Bootstrap done | AI-0 | ⏳ Gözləyir | — | — |
 | G1 — Foundation done | AI-1 | ⏳ Planlandı | — | — |
-| G2 — POS Core done | AI-2 | ⏳ Planlandı | — | — |
-| G3 — Order Mgmt done | AI-3 | ⏳ Planlandı | — | — |
-| G4 — Mock Pilot done (MVP) | AI-4 | ⏳ Planlandı | — | — |
-| G5 — Online + Category done | AI-5 | ⏳ Planlandı | — | — |
-| G6 — Accounting done (**hüquqi**) | AI-6 | ⏳ Planlandı | — | — |
-| G7 — Staging deploy (**$ ilk dəfə**) | AI-7 | ⏳ Planlandı | — | — |
-| G8 — Production go-live (**reputasiya**) | AI-7 | ⏳ Planlandı | — | — |
+| G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
+| **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ Planlandı | — | — |
+| G3 — Order Mgmt done | AI-3 | ❄️ Dondurulub | — | — |
+| G4 — Mock Pilot done | AI-4 | ❄️ Dondurulub | — | — |
+| G5 — Online + Category done | AI-5 | ❄️ Dondurulub | — | — |
+| G6 — Accounting done (**hüquqi**) | AI-6 | ❄️ Dondurulub | — | — |
+| G7 — Staging deploy (**$ ilk dəfə**) | AI-7 | ❄️ Dondurulub | — | — |
+| G8 — Production go-live (**reputasiya**) | AI-7 | ❄️ Dondurulub | — | — |
+
+> ❄️ = ADR-0011 ilə dondurulub; G-V (Validasiya) gate-i keçənə qədər başlanmır.
+
+---
+
+## Strateji Qərarlar (İnsan → AI)
+
+### D-001 — Beachhead re-scope (audit forku)
+**Tarix:** 2026-06-01
+**Kontekst:** Tam audit həddən-artıq scope + validasiyasız qurma riskini göstərdi (M1–M4).
+**Operator qərarları (3 fork):**
+- **Yanaşma:** "Yalnız yenidən scope" — faza sırası saxlanılır, AI-3…AI-7 dondurulur,
+  AI-2-dən sonra **G-V validasiya gate**.
+- **Beachhead:** Kafe/restoran + kiçik pərakəndə (Azərbaycan); v1 = ortaq nüvə.
+- **Satıcı çıxışı:** Var (operator tanışları) → validasiya paraleldir.
+**Nəticə:** ADR-0011 yaradıldı. Növbəti: validasiya toolkit + AI-0…AI-2 icrası.
 
 ---
 

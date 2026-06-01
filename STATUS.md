@@ -8,6 +8,20 @@
 
 ---
 
+## 🎯 STRATEGİYA (ADR-0011 — 2026-06-01 re-scope)
+
+- **Beachhead:** Azərbaycan · kafe/restoran + kiçik pərakəndə (v1 = ortaq nüvə)
+- **Yanaşma:** "Yalnız yenidən scope" — faza sırası saxlanılır, **AI-3…AI-7 DONDURULUB**
+- **Yeni gate:** **G-V (Validasiya)** — AI-2 MVP-dən sonra satıcı demo + kill/continue
+- **Paralel trek:** Validasiya (operator-un satıcı tanışları ilə) — AI toolkit hazırlayır
+- **İcra fokusu:** AI-0 → AI-1 → AI-2 (fiziki POS MVP, mock fiskal). Real fiskal: G-V sonra.
+
+> ❄️ Dondurulan fazalar G-V keçənə qədər başlanmır: AI-3 (order+adapter),
+> AI-4 (marketplace), AI-5 (online+storefront+delivery), AI-6 (accounting+multi-country),
+> AI-7 (booking+cloud). Detal: `docs/adr/0011-beachhead-rescope.md`.
+
+---
+
 ## Tamamlanmış task-lar
 - [x] **AI-0.1** — Monorepo skeleton + Git init (commit: `0a290ad`) — 2026-06-01
   - 58 fayl: services/ libs/ apps/ mocks/ infra/ tests/ docs/ scripts/ .github/

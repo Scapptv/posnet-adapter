@@ -8,6 +8,12 @@
 **Scope:** Bütün 8 faza (AI-0 … AI-7)
 **Pilot kanal:** Mock adapter (real partnerlik asılılığı yox)
 
+> ⚠️ **SCOPE FREEZE — ADR-0011 (2026-06-01).** İcra fokusu yalnız **AI-0 → AI-1 → AI-2**
+> (fiziki POS MVP, mock fiskal). Sonra **G-V (Validasiya) gate**. **AI-3…AI-7 DONDURULUB**
+> — G-V keçənə qədər BAŞLANMIR. Beachhead: Azərbaycan · kafe/restoran + kiçik pərakəndə.
+> Bu banner-i pozma; dondurmanın ləğvi yeni ADR tələb edir. Detal:
+> `docs/adr/0011-beachhead-rescope.md`.
+
 ---
 
 ## SƏNƏDİN YENİDƏN STRUKTURLAŞDIRILMASI (v2.1 → v3.0)
