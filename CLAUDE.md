@@ -187,6 +187,6 @@ Sessiyanı bitirmədən əvvəl:
 
 ## VERSİYA
 
-**CLAUDE.md versiyası:** 1.1 (vahid AI-ROADMAP.md istinad modelinə uyğunlaşdırılıb)
+**CLAUDE.md versiyası:** 1.2 (POS-anchored inteqrasiya hub modelinə uyğunlaşdırılıb — ADR-0012)
 **Tarix:** 1 İyun 2026
 **Dəyişiklik:** Yalnız ADR + insan icazəsi ilə

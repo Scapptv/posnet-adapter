@@ -1,10 +1,10 @@
 # STATUS — Posnet
 
-**Cari faza:** AI-0 (BOOTSTRAP)
-**Cari task:** AI-0.9 (ADR + Runbook templates — ADR-0010/0011/0012 artıq var)
-**Son commit:** `184379b` — feat(frontend): AI-0.6 frontend tooling
-**Son uğurlu verify:** 2026-06-01; AI-0.8 CI workflow-ları yazıldı (lokal CI-equivalent yaşıl)
-**Vəziyyət:** IN_PROGRESS
+**Cari faza:** AI-0 (BOOTSTRAP) — ✅ **TAMAMLANDI** (G0 təsdiq gözləyir)
+**Cari task:** **G0 gate** (insan təsdiqi) → sonra **AI-1 (Foundation)**
+**Son commit:** `43e631e` — ci: AI-0.8 GitHub Actions workflows
+**Son uğurlu verify:** 2026-06-01; AI-0.11 bootstrap smoke yaşıl (12 servis up + verify)
+**Vəziyyət:** AI-0 DONE — **G0 GÖZLƏYİR**
 
 ---
 
@@ -19,64 +19,54 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 - **Paralel insan trekləri:** (1) retail satıcı müsahibələri · (2) **Birmarket/Trendyol seller API access** (partner gate, D-002)
 - **AI build (blok deyil):** framework + **mock Birmarket adapter** → real credential gələndə swap
 
-> 🔄 ADR-0011 dondurması incələşdirildi: adapter framework + 1 kanal artıq CORE (yeni task **AI-2.5**, MVP-yə daxil).
-> Hələ təxirdə: 2-ci kanal, delivery & booking domain, fiskal, multi-country, cloud, TR.
-> Detal: `docs/adr/0012-integration-hub-reframe.md`.
+> 🔄 ADR-0011 dondurması incələşdirildi: adapter framework + 1 kanal CORE (yeni task **AI-2.5**, MVP-yə daxil).
+> Hələ təxirdə: 2-ci kanal, delivery & booking, fiskal, multi-country, cloud, TR. Detal: `docs/adr/0012-integration-hub-reframe.md`.
 
 ---
 
-## Tamamlanmış task-lar
-- [x] **AI-0.1** — Monorepo skeleton + Git init — 2026-06-01
-- [x] **AI-0.2** — Python tooling (pyproject + Makefile + pre-commit; ADR-0010 CVE) — 2026-06-01
-- [x] **AI-0.3** — Docker backend (postgres+pgmq, redis, vault, keycloak) — `adapter_*` — 2026-06-01
-- [x] **AI-0.4** — Observability (otel, jaeger, prometheus, loki, grafana); OTLP→Jaeger E2E ✅ — 2026-06-01
-- [x] **AI-0.5** — Dev infra (mailpit, minio + bucket-lar, caddy daxili-TLS) — 2026-06-01
-- [x] **AI-0.6** — Frontend tooling (pnpm workspace + admin-web Vite/React/TS; build ✅) — 2026-06-01
-- [x] **AI-0.8** — GitHub Actions CI — 2026-06-01
-  - `.github/workflows/{lint,test,security,build}.yml` + `CODEOWNERS` (make target-ləri ilə DRY)
-  - pytest cov no-data fix (`filterwarnings` → CovReportWarning ignore; exit 3 → 5)
-  - **Lokal CI-equivalent yaşıl:** yamllint · ruff · mypy · bandit · pip-audit · pytest(5) · eslint · tsc
-  - ⚠️ GitHub-da yalnız push-dan sonra işləyəcək (remote/repo insan qurur); `CODEOWNERS` `@OWNER` doldurulmalı
+## Faza AI-0 — TAMAMLANDI (10/11; AI-0.7 təxirdə)
+
+- [x] **AI-0.1** Monorepo skeleton + Git init
+- [x] **AI-0.2** Python tooling (pyproject + Makefile + pre-commit; ADR-0010 CVE)
+- [x] **AI-0.3** Docker backend (postgres+pgmq, redis, vault, keycloak) — `adapter_*`
+- [x] **AI-0.4** Observability (otel, jaeger, prometheus, loki, grafana); OTLP→Jaeger E2E ✅
+- [x] **AI-0.5** Dev infra (mailpit, minio + bucket-lar, caddy daxili-TLS)
+- [x] **AI-0.6** Frontend tooling (pnpm workspace + admin-web Vite/React/TS; build ✅)
+- [x] **AI-0.8** GitHub Actions CI (lint/test/security/build + CODEOWNERS; lokal CI-equivalent yaşıl)
+- [x] **AI-0.9** ADR + Runbook şablonları + ADR-0001/0002/0003 (stack/monorepo/secrets)
+- [x] **AI-0.10** CLAUDE.md tamamlandı (hub modeli, v1.2)
+- [x] **AI-0.11** Bootstrap smoke (up + verify yaşıl)
+- [ ] ~~AI-0.7~~ Flutter tooling — ⏸️ **TƏXİRDƏ** (gec OK; kassir app AI-2-də)
 
 ## İcrada
-- [ ] **AI-0.9** — ADR + Runbook templates (`docs/adr/_template.md`, `docs/runbooks/_template.md`)
-
-## Növbəti (FAZA AI-0 qalan — AI-ROADMAP.md §14)
-- [ ] AI-0.7 — Flutter tooling skeleton — ⏸️ **TƏXİRƏ SALINDI** (gec OK; kassir app sonra)
-- [ ] AI-0.10 — CLAUDE.md tamamla (hub modelinə uyğunlaşdırıldı ✅)
-- [ ] AI-0.11 — Smoke test: `make bootstrap`
-
-## Açıq Suallar (İnsan üçün)
-(yox)
+- **G0 gate** — insan təsdiqi gözləyir (HUMAN-GATES.md → G0 girişi). Təsdiqdən sonra → AI-1.
 
 ## Bloklar / Həll olunmuş
-- ✅ Git identity · Python 3.12.12 (uv) · make 3.81 · Docker Desktop v29.4.3 · node v24.8 + pnpm 10.18
+- ✅ Git identity · Python 3.12.12 (uv) · make 3.81 · Docker v29.4.3 · node v24.8 + pnpm 10.18
 - ✅ **İki ayrı posnet layihəsi:** bu = `adapter_*`; `posnet-help-center` = `posnet_*` (toxunma)
-- ✅ **Port toqquşmaları həll:** keycloak mgmt 9100, minio console 9101, caddy 8443
-- ✅ **pytest cov no-data** (CovReportWarning) düzəldildi — `filterwarnings`-ə ignore əlavə
-- ⏳ **CVE remediation** (ADR-0010): 3 CVE müvəqqəti ignored — Faza AI-7 G7 gate-də məcburi həll
-- ⏳ **GitHub remote/repo** — AI-0.8 CI-nin işləməsi üçün insan qurmalıdır
+- ✅ **Port toqquşmaları:** keycloak mgmt 9100, minio console 9101, caddy 8443
+- ✅ **pytest cov no-data** (CovReportWarning) düzəldildi — `filterwarnings` ignore
+- ⏳ **GitHub remote/repo** — AI-0.8 CI-nin işləməsi üçün insan qurmalıdır (G0 təsdiqindən sonra da OK)
+- ⏳ **CVE remediation** (ADR-0010): 3 CVE ignored — Faza AI-7 G7 gate-də məcburi
 
 ## Gate vəziyyəti
-- G0 (Bootstrap): ⏳ Faza AI-0 sonu (**7/11** task tamamlanıb)
-- G1 (Foundation): planlandı — eventbus/outbox prioritet (hub onurğası)
-- G2 (POS Core): planlandı — canonical model "hub-a hazır"
-- **AI-2.5 (Adapter framework + 1 kanal):** 🆕 ADR-0012 — MVP-yə daxil (mock→real Birmarket)
-- **G-V (Validasiya):** ADR-0012 — "online çıxış" dilimini retail satıcıya demo (kill/continue)
-- G3-G6, G7, G8: ❄️ təxirdə (G-V sonrası); G7-də ADR-0010 starlette CVE məcburi
+- **G0 (Bootstrap): 🟡 TƏSDİQ GÖZLƏYİR** (10/11 task; AI-0.7 təxirdə)
+- G1 (Foundation): növbəti — eventbus/outbox prioritet (hub onurğası)
+- G2 (POS Core): canonical model "hub-a hazır"
+- **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil (mock→real Birmarket)
+- **G-V (Validasiya):** ADR-0012 — "online çıxış" dilimini retail satıcıya demo
+- G3-G8: ❄️ təxirdə (G-V sonrası); G7-də ADR-0010 starlette CVE məcburi
 
 ---
 
-## Preflight Checklist (İnsan)
-- [x] Python 3.12.12 (uv) · uv · make 3.81 · Docker Desktop v29.4.3 · node v24.8 + pnpm 10.18 ✅
-- [x] ~~mkcert~~ — lazım deyil (Caddy daxili-CA TLS)
-- [ ] **GitHub hesabı + private org + remote + SSH key** (AI-0.8 CI işləməsi üçün) ← növbəti insan addımı
-- [ ] Flutter 3.24+ + fvm (AI-0.7 — təxirdə, gec OK)
-- [ ] VS Code + Claude Code extension hazır
+## G0 üçün İnsan addımları (təsdiqdən sonra / paralel)
+1. **GitHub:** private repo + org yarat → remote əlavə et → push → CI aktivləşir; `CODEOWNERS @OWNER` doldur
+2. (opsional) hosts faylı: `127.0.0.1 posnet.local keycloak.posnet.local ...` (Caddy domenləri üçün)
+3. AI-1 paralel insan trekləri: retail satıcı müsahibələri · Birmarket/Trendyol API access (D-002)
 
 ---
 
-## Endpointlər (lokal dev — `make up` sonrası)
+## Endpointlər (lokal dev — `make up` / `docker compose up -d` sonrası)
 
 | Servis | Ünvan | Giriş |
 |---|---|---|
@@ -96,11 +86,10 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ---
 
-## CVE Status (ADR-0010 → docs/adr/0010-cve-exceptions.md)
+## CVE Status (ADR-0010)
 
-| CVE | Paket | Status | Plan |
-|---|---|---|---|
-| CVE-2026-32274 | black | ✅ Düzəldildi (26.3.1+) | — |
-| CVE-2025-71176 | pytest | ⏳ Ignored | schemathesis 4.x stable çıxdıqda pytest>=9.0.3 |
-| CVE-2025-62727 | starlette | ⏳ Ignored | **G7 gate-də MƏCBURİ** |
-| PYSEC-2026-161 | starlette | ⏳ Ignored | **G7 gate-də MƏCBURİ** |
+| CVE | Paket | Status |
+|---|---|---|
+| CVE-2026-32274 | black | ✅ Düzəldildi |
+| CVE-2025-71176 | pytest | ⏳ Ignored (schemathesis 4.x) |
+| CVE-2025-62727 / PYSEC-2026-161 | starlette | ⏳ Ignored (**G7-də MƏCBURİ**) |

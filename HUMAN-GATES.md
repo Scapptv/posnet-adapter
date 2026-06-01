@@ -10,7 +10,7 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 
 | Gate | Faza | Status | İcazə tarixi | İcazə verən |
 |---|---|---|---|---|
-| G0 — Bootstrap done | AI-0 | ⏳ Gözləyir | — | — |
+| G0 — Bootstrap done | AI-0 | 🟡 **TƏSDİQ GÖZLƏYİR** (10/11) | — | — |
 | G1 — Foundation done | AI-1 | ⏳ Planlandı | — | — |
 | G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
 | **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ Planlandı | — | — |
@@ -77,6 +77,22 @@ public Marketplace API-si sənədlidir → ilk REAL adapter texniki olaraq Trend
 ---
 
 ## Gate Keçidləri (xronoloji jurnal)
+
+### G0 — Bootstrap done (TƏSDİQ GÖZLƏYİR)
+**Faza:** AI-0 (10/11 task; AI-0.7 Flutter təxirə salındı — gec OK)
+**Tarix:** 2026-06-01
+**Yoxlama nəticələri:**
+- [x] Bootstrap smoke (up + verify) keçir — 12 servis up (postgres/redis/vault/mailpit healthy), lint+type+security ✅
+- [x] Docker stack: backend + observability + dev infra (13 servis); funksional smoke (pgmq e2e, vault kv, OIDC token, OTLP→Jaeger) keçdi
+- [x] Frontend tooling: pnpm workspace + admin-web Vite build ✅
+- [x] CI workflow-ları (lint/test/security/build) yazıldı; lokal CI-equivalent yaşıl
+- [x] ADR-lər: 0001-0003 (stack/monorepo/secrets) + 0010/0011/0012; ADR + runbook şablonları
+- [x] STATUS.md "Faza AI-0 done"
+- [ ] **GitHub Actions yaşıl** — ⏳ insan GitHub repo + remote qurub push etməlidir (workflows hazır); `CODEOWNERS @OWNER` doldur
+- [ ] **Caddy posnet.local domenləri** — hosts faylı (opsional); daxili-TLS 8443-də onsuz da işləyir
+**İnsan qeydi:** [operator doldurur]
+**Status:** ⏳ APPROVED gözləyir
+**İmza:** [operator] [tarix]
 
 ### Şablon — hər gate üçün
 ```markdown
