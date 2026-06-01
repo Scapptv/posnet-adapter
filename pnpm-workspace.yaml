@@ -1,0 +1,5 @@
+packages:
+  - apps/*
+# Qeyd: yalnız package.json olan qovluqlar workspace üzvüdür.
+# apps/admin-web = aktiv (hub merchant paneli); apps/storefront = frozen/DONDURULUB (ADR-0012);
+# apps/pos-flutter = Flutter (pnpm üzvü deyil).
