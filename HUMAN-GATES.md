@@ -53,6 +53,17 @@ Birmarket adapteri ilə framework-i qurur, real credential gələndə swap. Texn
 public Marketplace API-si sənədlidir → ilk REAL adapter texniki olaraq Trendyol daha asan ola bilər.
 **Status:** ⏳ İnsan müraciət edəcək (paralel).
 
+### D-003 — Sirr human-gate sərhədi dəqiqləşdirildi (dev vs prod)
+**Tarix:** 2026-06-02
+**Kontekst:** AI-1.7 (Keycloak realm) əvvəlcə "sirr gate-i" kimi çərçivələndi (client secret → Vault).
+Operator peşəkar yenidən-baxış istədi. Aydınlaşdı: dev-mode credential (Keycloak, DB, Vault dev
+token) AI-nin qurduğu dev mühitinin hissəsidir və onsuz da `# pragma: allowlist secret` ilə commit
+olunub — bu **prod secret deyil**.
+**Qərar:** Human-gate yalnız (a) AI-nin əldə edə bilmədiyi REAL external credential (kanal API key,
+D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloak **secret-siz** qurulur
+(public+PKCE + bearer-only) → AI-1.7 dev-də **gate-li deyil**.
+**Nəticə:** ADR-0014 yaradıldı. AI-1.7 icra olundu (gate olmadan).
+
 ---
 
 ## Açıq Suallar (AI → İnsan)
