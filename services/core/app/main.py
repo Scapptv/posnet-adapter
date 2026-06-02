@@ -22,6 +22,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from .api.health import router as health_router
 from .config import Settings, get_settings
+from .errors import register_exception_handlers
+from .logging_config import configure_logging
+from .middleware.logging import LoggingMiddleware
+from .middleware.request_id import RequestIdMiddleware
 
 
 @asynccontextmanager
@@ -46,7 +50,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    configure_logging(json_logs=settings.environment != "local")
+
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
     app.state.settings = settings
+
+    register_exception_handlers(app)
+    # add_middleware prepends, so the last added is outermost: RequestId wraps
+    # Logging wraps the app — request_id is set before the access log runs.
+    app.add_middleware(LoggingMiddleware)
+    app.add_middleware(RequestIdMiddleware)
+
     app.include_router(health_router)
     return app
