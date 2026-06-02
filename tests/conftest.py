@@ -16,11 +16,16 @@ import sys
 
 import pytest
 
+# psycopg async refuses the Windows ProactorEventLoop. The fixture below covers
+# pytest-asyncio's loops; this global set also covers loops we don't own (e.g.
+# Starlette TestClient's portal thread). Prod runs on Linux, so this is dev-only.
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 @pytest.fixture(scope="session")
 def event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
-    """psycopg async refuses the Windows ProactorEventLoop; force the selector
-    loop so local integration tests can reach Postgres (prod runs on Linux)."""
+    """Force the selector loop for pytest-asyncio on Windows (psycopg async)."""
     if sys.platform == "win32":
         return asyncio.WindowsSelectorEventLoopPolicy()
     return asyncio.DefaultEventLoopPolicy()
