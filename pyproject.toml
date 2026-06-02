@@ -183,7 +183,7 @@ exclude = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["testcontainers.*", "pgmq.*", "hvac.*", "pybreaker.*"]
+module = ["testcontainers.*", "pgmq.*", "hvac.*", "pybreaker.*", "jose.*"]
 ignore_missing_imports = true
 
 # ---------- pytest ----------
