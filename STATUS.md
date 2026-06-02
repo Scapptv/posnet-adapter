@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.3 (Vault helper `get_secret()` — dev Vault hazır, auth-u unblock edir) — növbəti sessiya
-**Son commit:** `20a0403` — feat(canonical): AI-1.4 canonical model skeleton (v1)
-**Son uğurlu verify:** 2026-06-02; AI-1.4 TAM (canonical_model v1: 20 yeni test, canonical 100%, ümumi coverage 99.8%)
+**Cari task:** AI-1.8 (`libs/auth` JWT/JWKS verify — sintetik açarla test, Keycloak-suz icra olunur) — növbəti sessiya
+**Son commit:** `4bc58ae` — feat(vault): AI-1.3 get_secret() Vault helper
+**Son uğurlu verify:** 2026-06-02; AI-1.3 TAM (vault helper: 12 yeni test, vault 100%, ümumi coverage 99.8%)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -49,9 +49,12 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - frozen + strict (`extra=forbid`) Pydantic v2; `schema_version` ClassVar "v1" (ADR-0012 §17.1)
   - CanonicalProduct (listing snapshot) · Inventory (`available`=qty−reserved) · Price · Order (line+customer+totals)
   - `price_minor`+`currency` → `Money` property körpüsü; `validate_currency_code` libs/common-a çıxarıldı (DRY)
-- [ ] **AI-1.3 Vault helper `get_secret()` (← növbəti; dev Vault hazır, auth-u unblock edir)**
-- [ ] AI-1.7 Keycloak realm + 3 client + 4 role + test user
-- [ ] AI-1.8 `libs/auth` (JWT verify + JWKS cache + require_permission)
+- [x] **AI-1.3** `libs/vault` `get_secret()` Vault helper — 2026-06-02
+  - `vault://<mount>/<path...>/<key>` ref (son segment = key); `VaultClient`(hvac KV-v2) + `resolve_ref` passthrough
+  - `SecretError` (sehv ref / InvalidPath / key yox / forbidden); sirr dəyərləri cache/log olunmur (ADR-0003)
+  - testcontainers `VaultContainer` fixture (`tests/integration/conftest.py`) — auth/digər task-lar üçün
+- [ ] ⚠️ AI-1.7 Keycloak realm + 3 client + 4 role + test user — **insan gate** (confidential client secret → Vault)
+- [ ] **AI-1.8 `libs/auth` (JWT verify + JWKS Redis cache + require_permission) (← növbəti; sintetik açar+respx ilə test)**
 - [ ] AI-1.9 FastAPI app + middleware stack
 - [ ] AI-1.10 Global error handler (RFC 7807)
 - [ ] AI-1.11 Tenant context middleware (RLS injection)
