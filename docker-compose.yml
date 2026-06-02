@@ -65,11 +65,14 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
     container_name: adapter_keycloak
-    command: ["start-dev"]
+    command: ["start-dev", "--import-realm"]
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}  # pragma: allowlist secret
       KC_HEALTH_ENABLED: "true"
+    volumes:
+      # AI-1.7: posnet realm imported on start (--import-realm reads this dir).
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
     ports:
       - "${KEYCLOAK_PORT:-8080}:8080"
       - "9100:9000"  # management/health (host 9100 → MinIO 9000 ilə toqquşmasın)

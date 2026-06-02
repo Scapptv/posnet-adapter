@@ -1,5 +1,64 @@
 {
   "realm": "posnet",
   "enabled": true,
-  "displayName": "Posnet (placeholder — AI-1.7-də client/role/user doldurulacaq)"
+  "displayName": "Posnet",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 900,
+  "roles": {
+    "realm": [
+      { "name": "super_admin", "description": "Platform-wide system administrator" },
+      { "name": "tenant_admin", "description": "Administrator of a single tenant" },
+      { "name": "store_manager", "description": "Manager of a store within a tenant" },
+      { "name": "cashier", "description": "Operates a register / vardiya" },
+      { "name": "clerk", "description": "Catalog/stock clerk" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "posnet-web",
+      "name": "Posnet Admin and Storefront (SPA)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*", "https://localhost:8443/*"],
+      "webOrigins": ["+"],
+      "attributes": { "pkce.code.challenge.method": "S256", "post.logout.redirect.uris": "+" }
+    },
+    {
+      "clientId": "posnet-pos",
+      "name": "Posnet POS (Flutter)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:*", "io.posnet.pos://auth/*"],
+      "attributes": { "pkce.code.challenge.method": "S256" }
+    },
+    {
+      "clientId": "api-gateway",
+      "name": "Posnet API (resource server)",
+      "description": "Bearer-only: validates tokens via JWKS, holds no secret (ADR-0014).",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "bearerOnly": true
+    }
+  ],
+  "users": [
+    {
+      "username": "owner",
+      "email": "owner@posnet.test",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "Owner",
+      "credentials": [{ "type": "password", "value": "owner-dev-2026", "temporary": false }],
+      "realmRoles": ["tenant_admin"]
+    }
+  ]
 }
