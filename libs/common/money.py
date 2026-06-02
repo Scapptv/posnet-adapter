@@ -25,6 +25,17 @@ def minor_unit_exponent(currency: str) -> int:
     return _EXPONENTS.get(currency, 2)
 
 
+def validate_currency_code(code: str) -> str:
+    """Return ``code`` unchanged if it is a 3-letter upper-case ISO 4217 code.
+
+    Shared by :class:`Money` and the canonical model's ``CurrencyCode`` so both
+    enforce the same rule. Does not check the code against the ISO registry.
+    """
+    if len(code) != 3 or not code.isalpha() or not code.isupper():
+        raise ValueError(f"invalid ISO 4217 currency code: {code!r}")
+    return code
+
+
 @dataclass(frozen=True, slots=True)
 class Money:
     """An amount expressed in integer minor units of an ISO 4217 currency."""
@@ -33,8 +44,7 @@ class Money:
     currency: str
 
     def __post_init__(self) -> None:
-        if len(self.currency) != 3 or not self.currency.isalpha() or not self.currency.isupper():
-            raise ValueError(f"invalid ISO 4217 currency code: {self.currency!r}")
+        validate_currency_code(self.currency)
 
     def _assert_same_currency(self, other: Money) -> None:
         if self.currency != other.currency:

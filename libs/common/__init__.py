@@ -11,7 +11,7 @@ from .errors import (
     RateLimitError,
     ValidationError,
 )
-from .money import Money, minor_unit_exponent
+from .money import Money, minor_unit_exponent, validate_currency_code
 from .request_id import REQUEST_ID_HEADER, generate_request_id
 from .types import RoleId, StoreId, TenantId, UserId
 
@@ -31,4 +31,5 @@ __all__ = [
     "ValidationError",
     "generate_request_id",
     "minor_unit_exponent",
+    "validate_currency_code",
 ]

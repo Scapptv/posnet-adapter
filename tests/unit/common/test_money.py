@@ -8,7 +8,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from libs.common.money import Money, minor_unit_exponent
+from libs.common.money import Money, minor_unit_exponent, validate_currency_code
 
 _MINOR = st.integers(min_value=-(10**12), max_value=10**12)
 
@@ -31,6 +31,16 @@ def test_currency_mismatch_raises() -> None:
 def test_invalid_currency_raises(bad: str) -> None:
     with pytest.raises(ValueError, match="currency"):
         Money(100, bad)
+
+
+def test_validate_currency_code_returns_input() -> None:
+    assert validate_currency_code("AZN") == "AZN"
+
+
+@pytest.mark.parametrize("bad", ["azn", "AZ", "AZNN", "A1N"])
+def test_validate_currency_code_rejects(bad: str) -> None:
+    with pytest.raises(ValueError, match="currency"):
+        validate_currency_code(bad)
 
 
 def test_major_is_exact_decimal() -> None:
