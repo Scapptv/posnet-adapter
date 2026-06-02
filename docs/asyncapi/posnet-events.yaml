@@ -1,0 +1,100 @@
+---
+asyncapi: 3.0.0
+info:
+  title: Posnet Event Bus
+  version: 0.1.0
+  description: >-
+    Hub backbone (AI-1.14). Domain code writes events to the transactional
+    outbox; OutboxRelay atomically publishes them onto pgmq; Consumer delivers
+    at-least-once with exponential backoff and dead-letter routing. See
+    ADR-0013.
+defaultContentType: application/json
+
+servers:
+  pgmq:
+    host: localhost:5432
+    protocol: pgmq
+    description: pgmq queues living inside the core PostgreSQL instance.
+
+channels:
+  posnetEvents:
+    address: posnet_events
+    description: Primary domain event stream (outbox relay produces, consumers read).
+    messages:
+      event:
+        $ref: '#/components/messages/Event'
+  posnetEventsDlq:
+    address: posnet_events_dlq
+    description: Dead-letter queue for events that exhausted their retries.
+    messages:
+      deadLetter:
+        $ref: '#/components/messages/DeadLetter'
+
+operations:
+  publishEvent:
+    action: send
+    channel:
+      $ref: '#/channels/posnetEvents'
+    summary: OutboxRelay publishes one outbox row onto pgmq, in the same transaction.
+  consumeEvent:
+    action: receive
+    channel:
+      $ref: '#/channels/posnetEvents'
+    summary: >-
+      Consumer reads a message, runs the handler, archives on success; on
+      failure it retries with backoff, then routes to the DLQ.
+
+components:
+  messages:
+    Event:
+      name: Event
+      title: Domain event envelope
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/Event'
+    DeadLetter:
+      name: DeadLetter
+      title: Dead-lettered event with failure metadata
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/DeadLetter'
+
+  schemas:
+    Event:
+      type: object
+      required: [event_id, event_type, tenant_id, occurred_at, payload]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: Stable idempotency key for at-least-once consumers.
+        event_type:
+          type: string
+          examples: [catalog.product.created]
+        tenant_id:
+          type: string
+          format: uuid
+        occurred_at:
+          type: string
+          format: date-time
+        payload:
+          type: object
+          additionalProperties: true
+    DeadLetter:
+      type: object
+      required: [event, error, failed_at, original_msg_id, read_ct, source_queue]
+      properties:
+        event:
+          $ref: '#/components/schemas/Event'
+        error:
+          type: string
+        failed_at:
+          type: string
+          format: date-time
+        original_msg_id:
+          type: integer
+          format: int64
+        read_ct:
+          type: integer
+        source_queue:
+          type: string

@@ -10,3 +10,17 @@ will be added here once DB/auth land (AI-1.5+).
 """
 
 from __future__ import annotations
+
+import asyncio
+import sys
+
+import pytest
+
+
+@pytest.fixture(scope="session")
+def event_loop_policy() -> asyncio.AbstractEventLoopPolicy:
+    """psycopg async refuses the Windows ProactorEventLoop; force the selector
+    loop so local integration tests can reach Postgres (prod runs on Linux)."""
+    if sys.platform == "win32":
+        return asyncio.WindowsSelectorEventLoopPolicy()
+    return asyncio.DefaultEventLoopPolicy()
