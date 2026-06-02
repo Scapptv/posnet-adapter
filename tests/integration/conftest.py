@@ -20,6 +20,9 @@ from sqlalchemy.ext.asyncio import (
 )
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
+from testcontainers.vault import VaultContainer
+
+from libs.vault import VaultConfig
 
 PGMQ_IMAGE = "ghcr.io/pgmq/pg16-pgmq:latest"
 
@@ -39,6 +42,18 @@ def postgres_container() -> Iterator[PostgresContainer]:
 def redis_container() -> Iterator[RedisContainer]:
     with RedisContainer("redis:7-alpine") as rc:
         yield rc
+
+
+@pytest.fixture(scope="session")
+def vault_container() -> Iterator[VaultContainer]:
+    # Dev mode: KV-v2 is mounted at ``secret/`` out of the box.
+    with VaultContainer("hashicorp/vault:1.15") as vc:
+        yield vc
+
+
+@pytest.fixture
+def vault_config(vault_container: VaultContainer) -> VaultConfig:
+    return VaultConfig(addr=vault_container.get_connection_url(), token=vault_container.root_token)
 
 
 @pytest.fixture(scope="session")
