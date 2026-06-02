@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.8 (`libs/auth` JWT verify + JWKS Redis cache + require_permission — posnet realm hazır, canlı round-trip mümkün) — növbəti sessiya
-**Son commit:** `f0d9ccc` — feat(keycloak): AI-1.7 posnet realm (realm-as-code, secret-siz)
-**Son uğurlu verify:** 2026-06-02; AI-1.7 TAM (Keycloak realm: OIDC round-trip canlı ✅, 8 struktur test, ümumi coverage 99.8%)
+**Cari task:** AI-1.9 (FastAPI app + middleware stack — bütün foundation libs hazır: common/eventbus/canonical/vault/auth + Keycloak realm) — növbəti sessiya
+**Son commit:** `9e18dcb` — feat(auth): AI-1.8 libs/auth (JWT verify + JWKS cache + RBAC)
+**Son uğurlu verify:** 2026-06-02; AI-1.8 TAM (libs/auth: 21 yeni test, auth 100%, ümumi coverage 99.9%, 105 test)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -58,8 +58,12 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - **secret YOX** (ADR-0014): foundation public+PKCE/bearer-only → client secret lazım deyil → **insan gate yox** (səhv çərçivələmə düzəldildi)
   - `docker-compose --import-realm` + volume; OIDC round-trip canlı ✅ (token + `realm_access.roles=[tenant_admin]` + JWKS RS256)
   - ⚠️ təxir: `tenant_id` claim strategiyası (Keycloak attr vs DB lookup) → AI-1.11; confidential secret → G7 (prod, insan/Vault)
-- [ ] **AI-1.8 `libs/auth` (JWT verify + JWKS Redis cache + require_permission) (← növbəti; sintetik açar+respx ilə test)**
-- [ ] AI-1.9 FastAPI app + middleware stack
+- [x] **AI-1.8** `libs/auth` (JWT verify + JWKS Redis cache + RBAC) — 2026-06-02
+  - `TokenVerifier`: RS256 JWKS verify (iss/exp/alg/kid) → `Principal`; xəta → `AuthError`(401)
+  - `JwksClient`: JWKS Redis cache (TTL), kid-miss → 1 refetch (rotation heal); fetch xətası propagate
+  - `require_role` / `require_permission` (statik foundation RBAC map, super_admin bypass) → `ForbiddenError`(403)
+  - audience verify konfiqurabel (default off, G7-də mapper+enable); 21 test (real Redis+respx+sintetik RSA); auth 100%
+- [ ] **AI-1.9 FastAPI app + middleware stack (← növbəti; RequestId→Logging→Tracing→Auth→TenantContext→RateLimit→ErrorHandler + eventbus lifespan)**
 - [ ] AI-1.10 Global error handler (RFC 7807)
 - [ ] AI-1.11 Tenant context middleware (RLS injection)
 - [ ] AI-1.12 CORS + security headers + rate limiter
@@ -84,7 +88,7 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Gate vəziyyəti
 - **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
-- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC round-trip ✅; qalan: `libs/auth` · app+middleware · observability · tenant onboarding · v0.1.0-alpha tag
+- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅; qalan: app+middleware (AI-1.9) · observability · tenant onboarding · v0.1.0-alpha tag
 - G2 (POS Core): canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
 - **G-V (Validasiya):** retail satıcı demo (kill/continue)
