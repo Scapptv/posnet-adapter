@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.9.2 (RequestId + structured logging + global error handler RFC 7807 = AI-1.10) — AI-1.9 5 dilimə bölündü (aşağıda)
-**Son commit:** `ebb4c83` — feat(core): AI-1.9.1 FastAPI app skeleton + health probes
-**Son uğurlu verify:** 2026-06-02; AI-1.9.1 TAM (app factory + /healthz + /readyz: 6 yeni test, **ümumi coverage 100%**, 111 test)
+**Cari task:** AI-1.9.3 (Auth dependency `get_principal` + TenantContext RLS injection = AI-1.11) — AI-1.9 5 dilimə bölündü (aşağıda)
+**Son commit:** `9427185` — feat(core): AI-1.9.2 RequestId + structured logging + RFC 7807 errors
+**Son uğurlu verify:** 2026-06-02; AI-1.9.2 TAM (RequestId+logging+RFC7807: 10 yeni test, **ümumi coverage 100%**, 121 test)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -68,9 +68,10 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - [x] **AI-1.9.1** — App skeleton: `app/main.py` `create_app(settings)` factory · `lifespan` (engine+redis app.state, dispose/aclose) ·
     Settings genişləndi (app_name/version/environment/redis_url, `populate_by_name`) · `/healthz` (liveness) + `/readyz` (DB+Redis ping→503) ·
     Windows: qlobal selector event-loop policy (TestClient portal + psycopg async) · *əhatə: AI-1.9 core + AI-1.18 health hissəsi* — 2026-06-02
-  - [ ] **AI-1.9.2 ← CARİ** — RequestId middleware (contextvar+X-Request-ID) · structlog (JSON, request_id bind; AI-1.2-dən təxir) ·
-    global error handler RFC 7807 (DomainError→problem+json, ValidationError→422, generic→500) · *əhatə: **AI-1.10***
-  - [ ] **AI-1.9.3** — Auth dependency (`get_principal`: Bearer→verify→Principal) + `require_role`/`require_permission` Depends ·
+  - [x] **AI-1.9.2** — RequestId middleware (pure ASGI, contextvar + scope key; X-Request-ID echo/generate) · structlog
+    (JSON prod / console local, request_id processor; AI-1.2-dən təxir edilmiş logger) · access-log middleware ·
+    global RFC 7807 handler-lər (DomainError→problem+json, ValidationError→422, HTTPException, generic→500 leak-siz) · *əhatə: **AI-1.10*** — 2026-06-02
+  - [ ] **AI-1.9.3 ← CARİ** — Auth dependency (`get_principal`: Bearer→verify→Principal) + `require_role`/`require_permission` Depends ·
     TenantContext: tenant həlli (token sub/email → `users.tenant_id` DB lookup) + per-request `SET LOCAL app.current_tenant` · *əhatə: **AI-1.11**; tenant_id strategiya qərarı (ADR-0014 təxiri)*
   - [ ] **AI-1.9.4** — CORS (konfiqurabel) · security headers (HSTS/CSP/X-Content-Type-Options/X-Frame-Options/Referrer-Policy) ·
     slowapi rate limiter (Redis) → 429 problem+json (101→429 test) · *əhatə: **AI-1.12***
