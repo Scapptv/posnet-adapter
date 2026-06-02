@@ -467,10 +467,15 @@ OPK (AZ Onlayn Nəzarət-Kassa, fiskal).
 
 | ADR | Mövzu | Status |
 |---|---|---|
+| 0001 | Stack seçimi | ACCEPTED |
+| 0002 | Monorepo strukturu | ACCEPTED |
+| 0003 | Sirr idarəsi (Vault-only) | ACCEPTED |
 | 0010 | CVE istisnaları (pip-audit ignore) | ACCEPTED |
 | 0011 | Beachhead re-scope (faza dondurma + G-V) | ACCEPTED |
 | 0012 | POS-anchored İnteqrasiya Hub reframe | ACCEPTED (0011-i incələşdirir) |
-| 0001–0009 | (AI-0.9-da yaradılacaq: stack, monorepo, secrets, RLS, error, eventbus, …) | ⏳ |
+| 0013 | EventBus: pgmq transactional outbox (hub onurğası) | ACCEPTED (AI-1.14) |
+| 0014 | Dev/prod sirr sərhədi + Keycloak foundation client topologiyası | ACCEPTED (AI-1.7) |
+| 0004–0009 | (rezerv — boşluq; lazım olduqca yaradılır) | — |
 
 ---
 

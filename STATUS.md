@@ -77,7 +77,7 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
     slowapi rate limiter (Redis) → 429 problem+json (101→429 test) · *əhatə: **AI-1.12***
   - [ ] **AI-1.9.5** — eventbus relay/consumer-i app `lifespan`-da başlat + `pgmq.ensure_queue`; **relay/consumer üçün cross-tenant DB rolu**
     (BYPASSRLS/owner + pgmq schema grant) · *əhatə: **AI-1.14 follow-up*** — (1.9.1-dən ayrıldı: relay `posnet_app` RLS altında outbox-u görə bilməz)
-- [ ] AI-1.10 Global error handler (RFC 7807) — **AI-1.9.2-də**
+- [x] **AI-1.10** Global error handler (RFC 7807) ✅ — **AI-1.9.2-də** (2026-06-02)
 - [ ] AI-1.11 Tenant context middleware (RLS injection) — **AI-1.9.3-də**
 - [ ] AI-1.12 CORS + security headers + rate limiter — **AI-1.9.4-də**
 - [ ] AI-1.13 OTel + Prometheus + Grafana + Loki wiring (app → mövcud stack) — Tracing slot middleware sırasında
@@ -101,7 +101,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Gate vəziyyəti
 - **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
-- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅; qalan: app+middleware (AI-1.9) · observability · tenant onboarding · v0.1.0-alpha tag
+- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅;
+  qalan: AI-1.9.3-5 (auth+tenant RLS · CORS+rate · eventbus-lifespan+relay rolu) · observability(1.13) · onboarding(1.15) · CRUD(1.16) · flags/i18n(1.17) · health/shutdown(1.18) · `v0.1.0-alpha` tag
 - G2 (POS Core): canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
 - **G-V (Validasiya):** retail satıcı demo (kill/continue)
