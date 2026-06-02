@@ -40,6 +40,12 @@ def pg_dsn(postgres_container: PostgresContainer) -> str:
 
 
 @pytest.fixture(scope="session")
+def pg_sqlalchemy_url(postgres_container: PostgresContainer) -> str:
+    """SQLAlchemy / psycopg3 URL (postgresql+psycopg://...) for engine and alembic."""
+    return postgres_container.get_connection_url().replace("+psycopg2", "+psycopg")
+
+
+@pytest.fixture(scope="session")
 def redis_url(redis_container: RedisContainer) -> str:
     host = redis_container.get_container_host_ip()
     port = redis_container.get_exposed_port(6379)

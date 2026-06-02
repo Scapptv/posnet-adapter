@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.5 (SQLAlchemy models + Alembic migration 0001 — identity schema)
-**Son commit:** `0a7b3dd` — test: AI-1.1 test infra
-**Son uğurlu verify:** 2026-06-01; AI-1.2 libs/common yaşıl (coverage 100%, gate→80%)
+**Cari task:** AI-1.6 (RLS policies migration 0002 + cross-tenant izolasiya testi)
+**Son commit:** `b84e641` — feat(common): AI-1.2 libs/common
+**Son uğurlu verify:** 2026-06-02; AI-1.5 schema yaşıl (migration up/down/up, coverage 99.5%)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -32,8 +32,9 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - pytest filterwarnings: testcontainers + jsonschema 3rd-party deprecation ignore
 - [x] **AI-1.2** `libs/common` (errors/RFC7807, Money integer-minor, types, request-id) — 2026-06-01
   - mypy --strict ✅ · ruff ✅ · coverage 100% → **gate 80%-ə qaldırıldı** · logger AI-1.9-a təxir
-- [ ] **AI-1.5** SQLAlchemy models + Alembic migration 0001 (identity 9 cədvəl, TIMESTAMPTZ) ← **CARİ**
-- [ ] AI-1.6 RLS policies (migration 0002) + cross-tenant izolasiya testi
+- [x] **AI-1.5** SQLAlchemy models + Alembic migration 0001 (identity 9 cədvəl, TIMESTAMPTZ) — 2026-06-02
+  - autogenerate; **up/down/up** testcontainers test ✅; `tenant_id` RLS üçün bütün cədvəllərdə; coverage 99.5%
+- [ ] **AI-1.6** RLS policies (migration 0002) + cross-tenant izolasiya testi ← **CARİ**
 - [ ] AI-1.3 Vault helper · AI-1.4 canonical_model (schema/RLS-dən sonra)
 - [ ] AI-1.7 Keycloak realm + 3 client + 4 role + test user
 - [ ] AI-1.8 `libs/auth` (JWT verify + JWKS cache + require_permission)
