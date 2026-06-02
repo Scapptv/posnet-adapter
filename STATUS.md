@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.9.1 (App skeleton + Settings + lifespan + health) — AI-1.9 4 dilimə bölündü (aşağıda)
-**Son commit:** `9e18dcb` — feat(auth): AI-1.8 libs/auth (JWT verify + JWKS cache + RBAC)
-**Son uğurlu verify:** 2026-06-02; AI-1.8 TAM (libs/auth: 21 yeni test, auth 100%, ümumi coverage 99.9%, 105 test)
+**Cari task:** AI-1.9.2 (RequestId + structured logging + global error handler RFC 7807 = AI-1.10) — AI-1.9 5 dilimə bölündü (aşağıda)
+**Son commit:** `ebb4c83` — feat(core): AI-1.9.1 FastAPI app skeleton + health probes
+**Son uğurlu verify:** 2026-06-02; AI-1.9.1 TAM (app factory + /healthz + /readyz: 6 yeni test, **ümumi coverage 100%**, 111 test)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -63,17 +63,19 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - `JwksClient`: JWKS Redis cache (TTL), kid-miss → 1 refetch (rotation heal); fetch xətası propagate
   - `require_role` / `require_permission` (statik foundation RBAC map, super_admin bypass) → `ForbiddenError`(403)
   - audience verify konfiqurabel (default off, G7-də mapper+enable); 21 test (real Redis+respx+sintetik RSA); auth 100%
-- [ ] **AI-1.9 FastAPI app + middleware stack — 4 şaquli dilimə bölündü (hər biri TDD + atomik commit)**
+- [ ] **AI-1.9 FastAPI app + middleware stack — 5 şaquli dilimə bölündü (hər biri TDD + atomik commit)**
   - **Middleware sırası (LOCKED):** RequestId → Logging → Tracing(1.13) → Auth → TenantContext(RLS) → RateLimit → ErrorHandler
-  - [ ] **AI-1.9.1 ← CARİ** — App skeleton: `app/main.py` `create_app()` · Settings genişləndir (redis/keycloak/eventbus/cors/env) ·
-    `lifespan` (engine+redis+JWKS client+eventbus relay/consumer start/stop, `pgmq.ensure_queue`) · `/healthz` (liveness) + `/readyz` (DB+Redis ping→503)
-    · *əhatə: AI-1.9 core + AI-1.18 health probes hissəsi*
-  - [ ] **AI-1.9.2** — RequestId middleware (contextvar+X-Request-ID) · structlog (JSON, request_id bind; AI-1.2-dən təxir) ·
+  - [x] **AI-1.9.1** — App skeleton: `app/main.py` `create_app(settings)` factory · `lifespan` (engine+redis app.state, dispose/aclose) ·
+    Settings genişləndi (app_name/version/environment/redis_url, `populate_by_name`) · `/healthz` (liveness) + `/readyz` (DB+Redis ping→503) ·
+    Windows: qlobal selector event-loop policy (TestClient portal + psycopg async) · *əhatə: AI-1.9 core + AI-1.18 health hissəsi* — 2026-06-02
+  - [ ] **AI-1.9.2 ← CARİ** — RequestId middleware (contextvar+X-Request-ID) · structlog (JSON, request_id bind; AI-1.2-dən təxir) ·
     global error handler RFC 7807 (DomainError→problem+json, ValidationError→422, generic→500) · *əhatə: **AI-1.10***
   - [ ] **AI-1.9.3** — Auth dependency (`get_principal`: Bearer→verify→Principal) + `require_role`/`require_permission` Depends ·
     TenantContext: tenant həlli (token sub/email → `users.tenant_id` DB lookup) + per-request `SET LOCAL app.current_tenant` · *əhatə: **AI-1.11**; tenant_id strategiya qərarı (ADR-0014 təxiri)*
   - [ ] **AI-1.9.4** — CORS (konfiqurabel) · security headers (HSTS/CSP/X-Content-Type-Options/X-Frame-Options/Referrer-Policy) ·
     slowapi rate limiter (Redis) → 429 problem+json (101→429 test) · *əhatə: **AI-1.12***
+  - [ ] **AI-1.9.5** — eventbus relay/consumer-i app `lifespan`-da başlat + `pgmq.ensure_queue`; **relay/consumer üçün cross-tenant DB rolu**
+    (BYPASSRLS/owner + pgmq schema grant) · *əhatə: **AI-1.14 follow-up*** — (1.9.1-dən ayrıldı: relay `posnet_app` RLS altında outbox-u görə bilməz)
 - [ ] AI-1.10 Global error handler (RFC 7807) — **AI-1.9.2-də**
 - [ ] AI-1.11 Tenant context middleware (RLS injection) — **AI-1.9.3-də**
 - [ ] AI-1.12 CORS + security headers + rate limiter — **AI-1.9.4-də**
