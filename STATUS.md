@@ -2,7 +2,7 @@
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
 **Cari task:** AI-1.14 (Piece B — eventbus: pgmq + outbox + consumer + DLQ, hub onurğası)
-**Son commit:** `2525d3f` — feat(db): AI-1.5 identity schema
+**Son commit:** `6a1bf54` — feat(db): AI-1.6 RLS (Piece A tam)
 **Son uğurlu verify:** 2026-06-02; Piece A TAM (schema + RLS, 27 test, coverage 99.5%)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
