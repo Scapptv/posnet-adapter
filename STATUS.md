@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.2 (libs/common — logger, errors, types/Money, request-id)
-**Son commit:** `a45ea38` — docs: G0 APPROVED — AI-1 başladı
-**Son uğurlu verify:** 2026-06-01; AI-1.1 test harness yaşıl (unit + testcontainers integration)
+**Cari task:** AI-1.5 (SQLAlchemy models + Alembic migration 0001 — identity schema)
+**Son commit:** `0a7b3dd` — test: AI-1.1 test infra
+**Son uğurlu verify:** 2026-06-01; AI-1.2 libs/common yaşıl (coverage 100%, gate→80%)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -28,14 +28,13 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 **Məqsəd:** Auth + multi-tenant + RLS + DB + **eventbus/outbox (hub onurğası)** + observability.
 **Middleware sırası:** RequestId → Logging → Tracing → Auth → TenantContext(RLS) → RateLimit → ErrorHandler.
 
-- [x] **AI-1.1** Test infra (conftest + testcontainers Postgres/Redis + harness; unit+integration ✅) — 2026-06-01
-  - Coverage gate hələ 0 (app kodu yox) → AI-1.2 libs/common gələndə 80%-ə qalxır
+- [x] **AI-1.1** Test infra (conftest + testcontainers Postgres/Redis + harness) — 2026-06-01
   - pytest filterwarnings: testcontainers + jsonschema 3rd-party deprecation ignore
-- [ ] **AI-1.2** `libs/common` (logger, errors, types/Money, request-id) ← **CARİ**
-- [ ] AI-1.3 Vault setup + `get_secret()` helper
-- [ ] AI-1.4 `libs/canonical_model` skeleton (hub — erkən)
-- [ ] AI-1.5 SQLAlchemy models + Alembic + migration 0001 (identity)
+- [x] **AI-1.2** `libs/common` (errors/RFC7807, Money integer-minor, types, request-id) — 2026-06-01
+  - mypy --strict ✅ · ruff ✅ · coverage 100% → **gate 80%-ə qaldırıldı** · logger AI-1.9-a təxir
+- [ ] **AI-1.5** SQLAlchemy models + Alembic migration 0001 (identity 9 cədvəl, TIMESTAMPTZ) ← **CARİ**
 - [ ] AI-1.6 RLS policies (migration 0002) + cross-tenant izolasiya testi
+- [ ] AI-1.3 Vault helper · AI-1.4 canonical_model (schema/RLS-dən sonra)
 - [ ] AI-1.7 Keycloak realm + 3 client + 4 role + test user
 - [ ] AI-1.8 `libs/auth` (JWT verify + JWKS cache + require_permission)
 - [ ] AI-1.9 FastAPI app + middleware stack
