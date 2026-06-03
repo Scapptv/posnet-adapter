@@ -12,6 +12,7 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 |---|---|---|---|---|
 | G0 — Bootstrap done | AI-0 | ✅ **APPROVED** | 2026-06-01 | Scapptv |
 | G1 — Foundation done | AI-1 | ✅ **APPROVED (şərti)** | 2026-06-03 | Scapptv |
+| **AI-2.H — Audit hardening** (ADR-0016) | AI-2 | ✅ **TAM** (avtonom, AI) | 2026-06-04 | — |
 | G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
 | **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ Planlandı | — | — |
 | G3 — Order Mgmt done | AI-3 | ❄️ Dondurulub | — | — |
@@ -68,7 +69,21 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 
 ## Açıq Suallar (AI → İnsan)
 
-(yox)
+### Q-001 — AI-2.H1 canlı yoxlama (operator smoke)
+**Soruşan:** AI sessiya (Faza AI-2.H1)
+**Tarix:** 2026-06-04
+**Kontekst:** AI-2.H1 (Security posture, ADR-0017) kod tərəfi tam — 14 yeni avtomatik test (RLS FORCE, posnet_app non-owner LOGIN, dual-pool izolasiya, posnet_resolve_tenant) lokal-da yaşıl. İki dilim **canlı təsdiq** istəyir:
+- (a) **Keycloak realm parol substitusiyası** (`${env.POSNET_OWNER_PASSWORD}` → realm-posnet.json import-da): avtomatik realm testi strukturaldır, real OIDC round-trip canlı təsdiq istəyir.
+- (b) **Dev app `DATABASE_APP_URL`** (posnet_app pool) ilə `docker compose up` + smoke. Boş `DATABASE_APP_URL` system pool-a düşür (işləyir, amma kilidli deyil) — prod-da məcburi.
+
+**Variantlar:**
+- A) Operator hər ikisini lokal-da smoke et, nəticəni Q-001-ə yaz → AI tamamlanmış kimi qeyd edir
+- B) Yalnız (b)-ni indi yoxla, (a) G7-də prod Keycloak ilə birgə təsdiq olunur
+- C) Hər ikisini AI-2.5 ərzində bir paket halında yoxla (adapter framework də smoke ediləcək)
+
+**Tövsiyə:** **B** — (b) DATABASE_APP_URL təcili (hər lokal dev sessiyasında istifadə olunur, real layer-2 müdafiə qatı), (a) Keycloak substitusiyası prod-relevant amma dev mühitdə test client izolyasiya verir.
+**Cavab:** (insan dolduracaq)
+**Cavab tarixi:** (insan dolduracaq)
 
 ### Şablon
 ```markdown
@@ -88,6 +103,35 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 ---
 
 ## Gate Keçidləri (xronoloji jurnal)
+
+### AI-2.H — Audit Hardening TAM (avtonom, ADR-0016)
+**Faza:** AI-2.H (5/5 task H1-H5)
+**Tarix:** 2026-06-03 → 2026-06-04
+**Son commit:** `85f6eb6` — chore: STATUS — Faza AI-2.H TAM (H1-H5); növbəti AI-2.5
+
+**$100M audit (6 agent, 2026-06-03) tapıntıları (A1-A7 + B1-B6) həllinin yekun jurnalı:**
+
+| Audit | Risk | H-task | ADR | Migration | Sübut |
+|---|---|---|---|---|---|
+| A1 RLS not FORCE + owner app | 🔴 | H1 | 0017 | 0009 | `test_rls_forced_on_every_policy_table`, `test_app_role_without_tenant_sees_zero_rows` |
+| A2 SKU/barcode not tenant-unique | 🔴 | H2 | — | 0010 | `test_same_sku_across_products_in_tenant_conflicts`, `test_same_barcode_within_tenant_conflicts` |
+| A3 First-create race → 500 | 🔴 | H2 | — | 0010 | `test_apply_movement_first_create_race_maps_to_conflict` (unit, IntegrityError → ConflictError) |
+| A4 DB CHECK + no concurrency test | 🔴 | H2 + H3 | — | 0010 | `test_inventory_check_*_at_db_level`, `test_concurrent_reservations_for_last_unit_serialise` |
+| A5 Coverage paint (fake-session) | 🔴 | H3 | — | — | Property tests 10 invariant + 9 Money; fake-session unitlər silindi; honest 99.88% |
+| A6 Hardcoded realm parol | 🔴 | H1 | 0017 | — | `${env.POSNET_OWNER_PASSWORD}` substitusiyası |
+| A7 JWT exp/iat/sub free | 🔴 | H1 | 0017 | — | `test_jwt_*_required`, audience local/test xaricində enforce |
+| B1 Catalog/inventory/pricing 0 outbox | 🔴 | H4 | — | — | `test_create_product_emits_catalog_event`, `_inventory_movement_emits_event_with_post_state`, etc. |
+| B2 store↔warehouse online-sellable yox | 🟡 | H5 | 0018 | 0011 | `test_build_canonical_product_aggregates_only_online_warehouses` |
+| B3 online-published flag yox | 🟡 | H5 | 0018 | 0011 | `test_product_default_online_published_false`, `_unpublished_returns_none` |
+| B4 channel schema yox | 🟡 | H5 | 0018 | 0011 | `test_channel_code_unique_per_tenant`, `_external_listing_id_unique_per_channel` |
+| B5 Consume idempotency yox | 🔴 | H4 | — | — | `test_idempotent_runs_handler_once_per_event_id`, `_rolls_back_key_on_handler_failure` |
+| B6 Canonical mapper yox | 🟡 | H5 | 0018 | — | `tests/unit/app/test_canonical_mapper.py` (13 unit) + `_uses_resolved_price_with_override` |
+
+**Suite progressi:** 351 (H0 start) → 365 (H1) → 385 (H2) → 406 (H3) → 414 (H4) → 443 (H5). Coverage 99.88% honest (pytest-cov async-greenlet məhdudiyyəti, kod yolu tam icra olunur).
+
+**Açıq qalan (Q-001):** operator canlı smoke (Keycloak realm parol substitusiyası + dev DATABASE_APP_URL pool). Kod tərəfdən bloklamır; AI-2.5 ərzində smoke edilə bilər.
+
+**Növbəti:** AI-2.5 adapter framework + 1 kanal (mock-marketplace → real Birmarket/Trendyol) hardened təməl üstündə.
 
 ### G1 — Foundation done (TƏSDİQ GÖZLƏYİR)
 **Faza:** AI-1 (18/18 task TAM)

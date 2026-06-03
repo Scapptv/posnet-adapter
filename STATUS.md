@@ -20,16 +20,69 @@ sifariş emalı + online çek).
 - **Beachhead:** **Azərbaycan · pərakəndə · ilk kanal = Birmarket/Trendyol (marketplace)**
 - **Crown jewel:** adapter SDK + canonical model + sync engine (idempotency + reconciliation 1-ci gündən)
 
-> 🔄 Aktiv yol: AI-0 ✅ → AI-1 (Foundation) ✅ → AI-2.1–2.4 (POS/online qat) ✅ → **AI-2.H (Audit hardening) ◀ CARİ** → AI-2.5 (Adapter framework + 1 kanal) → G-V.
-> Detal: `docs/adr/0012-integration-hub-reframe.md`, **`docs/adr/0016-audit-hardening-before-adapters.md`**.
+> 🔄 Aktiv yol: AI-0 ✅ → AI-1 (Foundation) ✅ → AI-2.1–2.4 (POS/online qat) ✅ → **AI-2.H (Audit hardening) ✅ TAM** → **AI-2.5 (Adapter framework + 1 kanal) ◀ CARİ** → G-V.
+> Detal: `docs/adr/0012-integration-hub-reframe.md`, `docs/adr/0016-audit-hardening-before-adapters.md`, `docs/adr/0017-db-security-posture.md`, `docs/adr/0018-sync-model-enabler.md`.
 
 ---
 
-## Faza AI-2.H — AUDIT HARDENING (icra ardıcıllığı; **CARİ** — AI-2.5-dən əvvəl)
+## Faza AI-2.H — AUDIT HARDENING ✅ TAMAMLANDI (2026-06-03 → 2026-06-04)
 
 **Mənbə:** $100M audit (6 agent, 2026-06-03) — ADR-0016. Düzgün məntiqi sıra: təhlükəsizlik → data
-identity/invariant → korrektlik/proof → sync enabler → sonra adapterlər. **Kritiklər indi ucuz,
-kanallardan sonra baha.** Hər task: TDD + lokal `make verify`/pytest 100% + commit (push yox).
+identity/invariant → korrektlik/proof → sync enabler → sonra adapterlər. **Kritiklər ucuz mərhələdə
+həll olundu**, AI-2.5 təmizlənmiş təməl üstündə qurula bilər.
+
+### Çatdırma xülasə (H1-H5)
+
+| Task | Tarix | ADR | Migration | Yeni test | Suite | Audit |
+|---|---|---|---|---|---|---|
+| H1 Security posture | 2026-06-03 | 0017 | 0009 | +14 | 365 | A1, A6, A7 |
+| H2 Data identity & invariant | 2026-06-03 | — | 0010 | +20 | 385 | A2, A3, A4 |
+| H3 Anti-oversell proof | 2026-06-04 | — | — | +21 | 406 | A4, A5 |
+| H4 Sync change-feed | 2026-06-04 | — | — | +8 | 414 | B1, B5 |
+| H5 Sync model enabler | 2026-06-04 | 0018 | 0011 | +29 | 443 | B2, B3, B4, B6 |
+
+**Cəmi:** 5 task · 3 migration · 3 ADR · +92 test (351 → 443) · coverage **80% gate-i 99.88%-də saxlayır** (honest, fake-session paint silinmiş).
+
+### Audit tapıntıları → həll xəritəsi
+
+| # | Tapıntı | Risk | Həll yeri | Status |
+|---|---|---|---|---|
+| **A1** | RLS `FORCE` yox + app `posnet` (owner) ilə bağlanır → bir unudulmuş `SET LOCAL ROLE` = bütün tenant-lar sızar | 🔴 | **H1** — RLS FORCE bütün cədvəllərə, dual-pool, posnet_app non-owner LOGIN | ✅ |
+| **A2** | SKU/barkod tenant daxilində unikal deyil; `find_variant_*` `ORDER BY`-sız | 🔴 | **H2** — `UNIQUE(tenant_id, sku)` + partial `UNIQUE(tenant_id, barcode)` + deterministik `ORDER BY id` | ✅ |
+| **A3** | Inventory first-create race `IntegrityError` tutulmur → HTTP 500 | 🔴 | **H2** — `apply_movement` `IntegrityError` → `ConflictError(409)` | ✅ |
+| **A4** | Anti-oversell üçün DB CHECK backstop yox; sıfır konkurentlik testi | 🔴 | **H2** + **H3** — `inventory` CHECK qty/reserved + real paralel-tx oversell testləri | ✅ |
+| **A5** | "100% coverage" qismən saxta — fake-session, monkey-patch handler-lər | 🔴 | **H3** — fake-session unit-lər silindi, hypothesis property-test əlavə, `make verify`-ə `test` | ✅ |
+| **A6** | `realm-posnet.json`-da hardcoded `tenant_admin` parolu (public repo) | 🔴 | **H1** — `${env.POSNET_OWNER_PASSWORD}` substitusiyası, compose dev default | ✅ |
+| **A7** | JWT `exp/iat/sub` məcburi deyil; audience yox | 🔴 | **H1** — `require_exp/iat/sub`, audience local/test xaricində enforce | ✅ |
+| **B1** | Catalog/inventory/pricing **sıfır outbox event** emit → sync engine-in change-feed-i yoxdur | 🔴 | **H4** — `catalog.product.created` / `.variant.added` / `inventory.movement.applied` / `pricing.override.set` | ✅ |
+| **B2** | Store↔warehouse modeli online-sellable-stock saxlamır | 🟡 | **H5** — `warehouses.is_online_sellable` flag + `aggregate_online_stock` helper | ✅ |
+| **B3** | `online-published` flag yox | 🟡 | **H5** — `products.online_published` (default false, explicit opt-in) | ✅ |
+| **B4** | Channel schema yox (channels, channel_listings) | 🟡 | **H5** — `channels` + `channel_listings` (UNIQUE constraints, RLS) | ✅ |
+| **B5** | Consume idempotency yox (`idempotency_keys` wiring) | 🔴 | **H4** — `idempotent(handler)` wrapper, `INSERT ... ON CONFLICT DO NOTHING` | ✅ |
+| **B6** | Canonical mapper yox (ORM → CanonicalProduct) | 🟡 | **H5** — `sync/canonical.py`: pure helpers + `build_canonical_product` orchestrator | ✅ |
+
+### Yeni çatdırılan modullar (AI-2.H daxilində)
+
+| Modul | Faylı | Məqsəd |
+|---|---|---|
+| Idempotency wrapper | `services/core/app/idempotency.py` | Consume-side `event_id` dedup |
+| Domain events | `services/core/app/domain/events.py` | Event tip-lərin mərkəzi siyahısı |
+| Canonical mapper | `services/core/app/sync/canonical.py` | ORM → CanonicalProduct/Inventory/Price |
+| Channel models | `models.py`-də `Channel`, `ChannelListing` | Per-channel variant mapping |
+
+### Açıq qalan (AI-2.H sonrası, AI-2.5-yə qədər)
+
+- ⏳ **AI-2.H1 canlı yoxlama (operator)** — (a) Keycloak `${env.POSNET_OWNER_PASSWORD}` substitusiyası import-da: avtomatik realm testi strukturaldır, **OIDC round-trip canlı təsdiq istəyir**; (b) dev app `DATABASE_APP_URL` (posnet_app pool) ilə `docker compose up` + smoke. Boş `DATABASE_APP_URL` system pool-a düşür (işləyir, amma kilidli deyil) — prod-da məcburi.
+- ⏳ **GitHub CI billing** — hesab "failed payment" blokunu həll et (kart/billing) → CI yaşıl → `v0.1.0-alpha` tag.
+- 🔮 **AI-2.5 ərzində açılır** (qətnamə H-də tutulmayıb, sonradan həll olunur):
+  - FTS gin tenant-aware (per-tenant index hint)
+  - Per-tenant + per-kanal rate-limit
+  - Eventbus health (DLQ depth, queue lag metrik)
+  - OTel trace propagation outbox → consumer → adapter
+  - Aggregation override mexanizmi (per-channel buffer, safety-stock) — ADR-0018 §5 amendment
+  - `channels.config` JSONB üçün Pydantic schema (adapter-spesifik)
+
+### H1-H5 detalları (tarixi qeyd üçün — keçmişdən gələcəyə)
 
 - [x] **AI-2.H1 🔴 Security posture** ✅ — 2026-06-03 (ADR-0017). RLS `FORCE` bütün policy cədvəllərinə (dinamik DO-loop) + `posnet_app` **non-owner LOGIN** rolu (NOSUPERUSER NOBYPASSRLS); **dual-pool**: app pool (`DATABASE_APP_URL`→posnet_app, per-request) + system pool (`DATABASE_URL`→superuser: migration/super_admin/relay/consumer/onboarding). Role-suz/tenant-siz sorğu **0 sətir** regression. `posnet_resolve_tenant` SECURITY DEFINER (sabit search_path, PUBLIC-dən REVOKE) — kilidli pool üçün tək cross-tenant subject→tenant. `realm-posnet.json` parolu → `${env.POSNET_OWNER_PASSWORD}` (compose dev default, A6). JWT `require_exp/iat/sub` + boş/whitespace sub rədd + audience enforce local/test xaricində (A7). migration **0009**; 14 yeni test → suite **365 @ 100%**. *(audit A1, A6, A7)*
 - [x] **AI-2.H2 🔴 Data identity & invariant** ✅ — 2026-06-03. migration **0010**: `variants` köhnə `UNIQUE(product_id, sku)` → **`UNIQUE(tenant_id, sku)`** + partial **`UNIQUE(tenant_id, barcode) WHERE barcode IS NOT NULL`** (adapter contract-ları SKU-keyed, POS scan deterministik); `inventory` üç **CHECK** (`qty>=0`, `reserved_qty>=0`, `reserved_qty<=qty`) — domain `_effect`-dən kənar yol qalsa belə anti-oversell DB-də qoruyur; **journal lockdown** — `stock_movements`/`cash_movements`/`audit_logs`-dan `posnet_app` üzərində UPDATE+DELETE REVOKE (append-only, FK CASCADE owner-priv ilə işləyir). domain: `find_variant_by_sku/barcode` `ORDER BY id` deterministik backstop; `add_variant` flush IntegrityError → ConflictError (sku VƏ ya barcode); `apply_movement` ilk-yaranma race INSERT IntegrityError → ConflictError(409). 20 yeni test (19 integration + 1 unit) → suite **385 @ 100%**. *(audit A2, A3, A4, schema)*
@@ -37,14 +90,12 @@ kanallardan sonra baha.** Hər task: TDD + lokal `make verify`/pytest 100% + com
 - [x] **AI-2.H4 🔴 Sync change-feed** ✅ — 2026-06-04. **Outbox event emit** (audit B1, [domain/events.py](services/core/app/domain/events.py) mərkəzi tip-lər): `catalog.product.created` (create_product), `catalog.variant.added` (add_variant), `inventory.movement.applied` (apply_movement — payload-da `new_qty`/`new_reserved_qty`/`version`), `pricing.override.set` (set_override). Hər emit business write ilə eyni tx-də (atomik — mutation fail-i event-i də rollback edir). **Consume idempotency** (audit B5, [idempotency.py](services/core/app/idempotency.py)): `idempotent(handler)` wrapper — `INSERT INTO idempotency_keys ... ON CONFLICT (key) DO NOTHING`; `rowcount==0` → handler skip (redelivery dedup); handler exception → tx rollback, key də silinir (retry mümkün). `create_app` default-da `idempotent(handler)` wrap edir. 8 yeni integration test → suite **414 @ 99.88%**. *(audit B1, B5)*
 - [x] **AI-2.H5 🟡 Sync model enabler** ✅ — 2026-06-04 (ADR-0018). migration **0011**: `warehouses.is_online_sellable` (default true — mövcud anbarlar onlayn sayılır), `products.online_published` (default **false** — explicit opt-in, inadvertent push qarşısı), yeni iki cədvəl `channels` (UNIQUE tenant_id+code) və `channel_listings` (UNIQUE channel_id+variant_id, partial UNIQUE channel_id+external_listing_id non-NULL) — RLS FORCE + posnet_app grant. **Canonical mapper** ([sync/canonical.py](services/core/app/sync/canonical.py)): pure helper-lər (`aggregate_online_stock`, `to_canonical_inventory/price/product`) + orchestrator `build_canonical_product(session, variant_id, at)` — Variant+Product oxu, `online_published=false` → None, `is_online_sellable=true` anbarları aqreqasiya, `resolve_price`, ImageURL-lar (sort_order), `CanonicalProduct` qaytarır. `stock_qty=max(qty-reserved, 0)` — kanal heç vaxt mənfi görmür (canonical anti-oversell qatı). 29 yeni test (13 unit pure helper + 16 integration: schema default-ları, channel uniqueness, RLS isolation, mapper happy/edge path-lar, migration sanity) → suite **443 @ 99.88%**. *(audit B2, B3, B4, B6)*
 
-> ⚠️ **AI-2.H1 canlı yoxlama (paralel, operator):** (a) Keycloak `${env.POSNET_OWNER_PASSWORD}` substitusiyası import-da — avtomatik realm testi strukturaldır, OIDC round-trip canlı təsdiq istəyir; (b) dev app `DATABASE_APP_URL` (posnet_app pool) ilə `docker compose up` + smoke. Boş `DATABASE_APP_URL` system pool-a düşür (işləyir, amma kilidli deyil).
-
 **Hardening sonrası → AI-2.5** adapter framework + 1 kanal (mock-marketplace → real) təmizlənmiş təməl üstündə.
-**FTS gin tenant-aware** + per-tenant/per-kanal rate-limit + eventbus health (DLQ/queue depth) + trace propagation = AI-2.5 ərzində.
 
-## Faza AI-2 — POS CORE / online qat (2.1–2.4 ✅; sale = AI-2.5-ə köçdü)
+## Faza AI-2 — POS CORE / online qat (2.1–2.4 ✅ + AI-2.H ✅; sale = AI-2.5-ə köçdü)
 
 **Məqsəd:** Catalog + inventory + pricing + shift + sale = **canonical tək həqiqət mənbəyi** (hub-a hazır).
+**Hardening sonrası vəziyyət:** schema + canonical mapper + outbox change-feed artıq hazırdır; AI-2.5 sale yolunu və 1 real kanal-ı bağlayır.
 
 - [x] **AI-2.1** Catalog domain + CRUD API ✅ — 2026-06-03
   - migration **0005**: products/variants/product_images (RLS + posnet_app grant, 0004 pattern); `gin(to_tsvector('simple', name))` dil-agnostik ad axtarışı; sku/barcode index
@@ -67,12 +118,32 @@ kanallardan sonra baha.** Hər task: TDD + lokal `make verify`/pytest 100% + com
 - [ ] AI-2.7 Admin-web minimal (məhsul/stok idarəsi)
 - [ ] AI-2.8 Flutter kassir minimal (offline-first satış) — opsional, gec OK
 
-**Follow-up (təxir — G2-yə qədər həll):**
-- AI-2.1: `/variants/lookup` cavabına `currency` (+ product_name) əlavə (POS qiymət göstərimi); `UNIQUE(tenant_id, barcode)` partial constraint; `list_products` paginasiya
-- AI-2.2: `transfer` movement (2 warehouse atomik); inventory ilk-yaranma konkurent race (INSERT ON CONFLICT)
+**Follow-up (G2-yə qədər həll — AI-2.H sonrası vəziyyət):**
+- AI-2.1: `/variants/lookup` cavabına `currency` (+ product_name) əlavə (POS qiymət göstərimi); `list_products` paginasiya. ~~`UNIQUE(tenant_id, barcode)` partial constraint~~ ✅ **H2-də həll** (migration 0010)
+- AI-2.2: `transfer` movement (2 warehouse atomik). ~~inventory ilk-yaranma konkurent race~~ ✅ **H2-də həll** (IntegrityError → ConflictError 409)
 - **GitHub CI:** hesab "failed payment" blokunu həll et (billing) — sonra push + CI yaşıl + `v0.1.0-alpha` tag
 
 **GATE G2:** məhsul yarat→barkod axtar→satış→stok düş E2E · canonical map · coverage ≥80% (pul path 95%) · make verify · CI yaşıl.
+
+---
+
+## Schema xəritəsi (cari) — migration 0001-0011
+
+Hər migration nə əlavə etdi (`services/core/alembic/versions/`):
+
+| # | Faza | Mövzu | Əsas cədvəl/dəyişiklik |
+|---|---|---|---|
+| 0001 | AI-1.5 | Identity (9 cədvəl) | tenants, stores, users, roles, permissions, user_roles, audit_logs, idempotency_keys, outbox_events |
+| 0002 | AI-1.6 | RLS | `posnet_app` role, `tenant_isolation` policy hər identity cədvəlinə |
+| 0003 | AI-1.9.3 | Tenant resolver | `users.external_subject` qlobal unique (ADR-0015) |
+| 0004 | AI-1.17 | Feature flags | `feature_flags(tenant_id, key, enabled)` + RLS + grant |
+| 0005 | AI-2.1 | Catalog | products + variants + product_images, FTS gin index |
+| 0006 | AI-2.2 | Inventory | warehouses + inventory + stock_movements + version optimistic lock |
+| 0007 | AI-2.3 | Pricing | `price_overrides(tenant_id, variant_id, store_id?, valid_from/to)` |
+| 0008 | AI-2.4 | Shifts | `shifts` + partial UNIQUE açıq vardiya + `cash_movements` |
+| **0009** | **AI-2.H1** | **Security posture (A1)** | `posnet_app` non-owner LOGIN, RLS **FORCE** dinamik DO-loop, `posnet_resolve_tenant()` SECURITY DEFINER |
+| **0010** | **AI-2.H2** | **Data identity (A2/A3/A4)** | `variants` `UNIQUE(tenant_id, sku)` + partial `UNIQUE(tenant_id, barcode)`, `inventory` 3 CHECK, journal lockdown REVOKE UPDATE/DELETE |
+| **0011** | **AI-2.H5** | **Sync model (B2/B3/B4)** | `warehouses.is_online_sellable`, `products.online_published`, `channels`, `channel_listings` |
 
 ---
 
