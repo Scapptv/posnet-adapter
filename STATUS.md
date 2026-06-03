@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18)
-**Cari task:** AI-2.2 (Inventory — stock movement + optimistic lock + reserve/unreserve)
-**Son commit:** `9ba65b2` — feat(core): AI-2.1 catalog domain + CRUD API
-**Son uğurlu verify:** 2026-06-03; AI-2.1 TAM (catalog domain + CRUD API + barkod/sku lookup + FTS: 20 yeni test, **ümumi coverage 100%**, 289 test)
+**Cari task:** AI-2.3 (Pricing — base price + currency; rule engine sonra)
+**Son commit:** `028f84b` — feat(core): AI-2.2 inventory + anti-oversell (stock movements)
+**Son uğurlu verify:** 2026-06-03; AI-2.2 TAM (inventory: stock movement engine + reserve/unreserve anti-oversell + optimistic version: 29 yeni test, **ümumi coverage 100%**, 318 test)
 **Vəziyyət:** AI-2 IN_PROGRESS (AI-2.1 ✅). GitHub: `Scapptv/posnet-adapter` (public) push olundu. **CI bloklu** — hesab "failed payment" (billing-də həll olunmalı; kod problemi yox, lokal yaşıl). `v0.1.0-alpha` tag CI yaşılından sonra.
 
 ---
@@ -31,13 +31,21 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - migration **0005**: products/variants/product_images (RLS + posnet_app grant, 0004 pattern); `gin(to_tsvector('simple', name))` dil-agnostik ad axtarışı; sku/barcode index
   - domain/catalog.py (RLS-scoped): `create_product`(+images) · `list_products` (FTS plainto_tsquery) · `get_product` (variant+image detail) · `add_variant` · `find_variant_by_barcode/sku`. store_id/product_id RLS-lookup ilə yoxlanır → cross-tenant 404 (FK leak qarşısı)
   - API: `POST/GET /v1/products` · `GET /v1/products/{id}` · `POST /v1/products/{id}/variants` · `GET /v1/variants/lookup?barcode|sku` (POS scan). Gating: `catalog:read` (bütün store rolları) / `catalog:write` (store_manager/clerk/tenant_admin). Money integer-minor; currency ISO-4217 (default AZN)
-- [ ] AI-2.2 Inventory (stock movement journal + optimistic lock + reserve/unreserve)
+- [x] **AI-2.2** Inventory + anti-oversell ✅ — 2026-06-03
+  - migration **0006**: warehouses/inventory/stock_movements (RLS + grant); `inventory(qty, reserved_qty, min_qty, version, UNIQUE(variant_id,warehouse_id))`
+  - domain/inventory.py: `_effect` (pure: in/out/reserve/unreserve/adjust + anti-oversell guard) · `apply_movement` (variant/warehouse RLS-lookup→404 · `SELECT FOR UPDATE` lock · version++ · movement insert · `expected_version` optimistic check) · create/list_warehouse · get_inventory
+  - API: `POST/GET /v1/warehouses` · `POST /v1/inventory/movements` (vahid yazı yolu) · `GET /v1/inventory?variant_id` (`available` computed). Gating: inventory:read/write
 - [ ] AI-2.3 Pricing (base price + currency; rule engine sonra)
 - [ ] AI-2.4 Shift/vardiya (aç/bağla) + cash management
 - [ ] AI-2.5-POS Sale/çek (yarat → stok düş, atomik) + X/Z report
 - [ ] AI-2.6 CanonicalProduct/Inventory/Price map (catalog ↔ canonical_model — hub üçün kritik)
 - [ ] AI-2.7 Admin-web minimal (məhsul/stok idarəsi)
 - [ ] AI-2.8 Flutter kassir minimal (offline-first satış) — opsional, gec OK
+
+**Follow-up (təxir — G2-yə qədər həll):**
+- AI-2.1: `/variants/lookup` cavabına `currency` (+ product_name) əlavə (POS qiymət göstərimi); `UNIQUE(tenant_id, barcode)` partial constraint; `list_products` paginasiya
+- AI-2.2: `transfer` movement (2 warehouse atomik); inventory ilk-yaranma konkurent race (INSERT ON CONFLICT)
+- **GitHub CI:** hesab "failed payment" blokunu həll et (billing) — sonra push + CI yaşıl + `v0.1.0-alpha` tag
 
 **GATE G2:** məhsul yarat→barkod axtar→satış→stok düş E2E · canonical map · coverage ≥80% (pul path 95%) · make verify · CI yaşıl.
 
