@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.13 (OTel + Prometheus + Grafana + Loki wiring; Tracing slot middleware sırasında) — **AI-1.9 TAM (5/5 dilim)**
-**Son commit:** `4f7d397` — feat(core): AI-1.9.5 eventbus relay/consumer in app lifespan
-**Son uğurlu verify:** 2026-06-03; AI-1.9.5 TAM (eventbus lifespan + cross-tenant workers: 6 yeni test, **ümumi coverage 100%**, 163 test)
+**Cari task:** AI-1.15 (Tenant onboarding API + ilk tenant seed)
+**Son commit:** `37b8e82` — feat(core): AI-1.13 OTel tracing + Prometheus metrics
+**Son uğurlu verify:** 2026-06-03; AI-1.13 TAM (OTel tracing + Prometheus /metrics + trace↔log/error korelyasiya: 13 yeni test, **ümumi coverage 100%**, 176 test)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -81,7 +81,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 - [x] **AI-1.10** Global error handler (RFC 7807) ✅ — **AI-1.9.2-də** (2026-06-02)
 - [x] **AI-1.11** Tenant context (RLS injection) ✅ — **AI-1.9.3-də** (2026-06-03, ADR-0015)
 - [x] **AI-1.12** CORS + security headers + rate limiter ✅ — **AI-1.9.4-də** (2026-06-03)
-- [ ] AI-1.13 OTel + Prometheus + Grafana + Loki wiring (app → mövcud stack) — Tracing slot middleware sırasında
+- [x] **AI-1.13** OTel tracing (FastAPI HTTP + SQLAlchemy DB span → OTLP) + Prometheus `/metrics` + trace_id log/RFC7807 korelyasiya ✅ — 2026-06-03
+  - `libs/observability` (TelemetryConfig + provider/sampler + instrument + metrics); `otel_enabled` gate (default False, .env-də açıq); Redis/httpx instrumentation təxir (process-global)
 - [x] **AI-1.14** pgmq publisher + outbox + consumer + DLQ — hub onurğası ✅ (2026-06-02, ADR-0013)
 - [ ] AI-1.15 Tenant onboarding API + ilk tenant seed
 - [ ] AI-1.16 User/Role/Permission CRUD
@@ -102,8 +103,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Gate vəziyyəti
 - **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
-- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM**;
-  qalan: observability(1.13) · onboarding(1.15) · CRUD(1.16) · flags/i18n(1.17) · health/shutdown(1.18) · `v0.1.0-alpha` tag
+- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM** · OTel trace + Prometheus metrics ✅;
+  qalan: onboarding(1.15) · CRUD(1.16) · flags/i18n(1.17) · health/shutdown(1.18) · `v0.1.0-alpha` tag
 - G2 (POS Core): canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
 - **G-V (Validasiya):** retail satıcı demo (kill/continue)
