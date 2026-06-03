@@ -15,6 +15,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -165,3 +166,63 @@ class OutboxEvent(Base, UUIDPrimaryKeyMixin):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+# ----------------------------------------------------------------------------
+# Catalog domain (AI-2.1) — products + variants + images. SKU/barcode-centric so
+# it maps cleanly to ``libs.canonical_model.CanonicalProduct`` (the hub, AI-2.6).
+# ----------------------------------------------------------------------------
+
+
+class Product(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "products"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    # NULL store_id = tenant-wide product; deleting a store leaves its products.
+    store_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stores.id", ondelete="SET NULL")
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    brand: Mapped[str | None] = mapped_column(String(200))
+    # Ordered category names (e.g. ["Food", "Beverages"]); JSONB matches the
+    # canonical model's ``category_path`` tuple.
+    category_path: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'[]'::jsonb")
+    )
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default=text("'AZN'"))
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'"))
+
+
+class Variant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "variants"
+    __table_args__ = (UniqueConstraint("product_id", "sku", name="uq_variants_product_sku"),)
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("products.id"), nullable=False, index=True
+    )
+    sku: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    barcode: Mapped[str | None] = mapped_column(String(100), index=True)
+    name: Mapped[str | None] = mapped_column(String(200))
+    attributes: Mapped[dict[str, str]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    base_price_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    cost_price_minor: Mapped[int | None] = mapped_column(BigInteger)
+
+
+class ProductImage(Base, UUIDPrimaryKeyMixin):
+    __tablename__ = "product_images"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("products.id"), nullable=False, index=True
+    )
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
