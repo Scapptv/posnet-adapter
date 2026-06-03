@@ -15,6 +15,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -313,3 +314,58 @@ class PriceOverride(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # Optional validity window (NULL = open-ended); an override applies only while active.
     valid_from: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     valid_to: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+
+
+# ----------------------------------------------------------------------------
+# Sales — shift/vardiya (AI-2.4). A cashier opens a till (opening cash), records
+# cash pay-in/out during the shift, then closes it (closing cash). Sales (AI-2.5)
+# attach to the open shift. At most one open shift per (store, cashier).
+# ----------------------------------------------------------------------------
+
+
+class Shift(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "shifts"
+    __table_args__ = (
+        Index(
+            "uq_shifts_open",
+            "store_id",
+            "cashier_id",
+            unique=True,
+            postgresql_where=text("status = 'open'"),
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    store_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("stores.id"), nullable=False, index=True
+    )
+    cashier_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("users.id"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(10), nullable=False, server_default=text("'open'"))
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default=text("'AZN'"))
+    opening_cash_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    closing_cash_minor: Mapped[int | None] = mapped_column(BigInteger)
+    opened_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )
+    closed_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+
+
+class CashMovement(Base, UUIDPrimaryKeyMixin):
+    __tablename__ = "cash_movements"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    shift_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("shifts.id"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(10), nullable=False)  # in | out
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
+    )

@@ -10,6 +10,7 @@ from .i18n import router as i18n_router
 from .inventory import router as inventory_router
 from .pricing import router as pricing_router
 from .roles import router as roles_router
+from .shifts import router as shifts_router
 from .tenants import router as tenants_router
 from .users import router as users_router
 
@@ -22,5 +23,6 @@ api_router.include_router(feature_flags_router)
 api_router.include_router(catalog_router)
 api_router.include_router(inventory_router)
 api_router.include_router(pricing_router)
+api_router.include_router(shifts_router)
 
 __all__ = ["api_router"]
