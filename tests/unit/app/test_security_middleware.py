@@ -23,6 +23,7 @@ def _app(**overrides: Any) -> FastAPI:
         "database_url": "postgresql+psycopg://u@localhost/x",
         "redis_url": "redis://localhost:6379/0",
         "rate_limit_storage_uri": "memory://",
+        "eventbus_enabled": False,  # no pgmq in unit tests
     }
     base.update(overrides)
     app = create_app(Settings(**base))

@@ -67,6 +67,18 @@ class Settings(BaseSettings):
     # limits/slowapi storage URI; empty -> fall back to ``redis_url``.
     rate_limit_storage_uri: str = Field(default="", alias="RATE_LIMIT_STORAGE_URI")
 
+    # ---- EventBus / pgmq workers (AI-1.9.5) ----
+    # Start the outbox relay + consumer in the app lifespan (the hub backbone).
+    # Disabled in tests that have no pgmq; requires the pgmq extension at startup.
+    eventbus_enabled: bool = Field(default=True, alias="EVENTBUS_ENABLED")
+    eventbus_poll_interval_seconds: float = Field(
+        default=1.0, alias="EVENTBUS_POLL_INTERVAL_SECONDS"
+    )
+    pgmq_queue: str = Field(default="posnet_events", alias="PGMQ_QUEUE_DEFAULT")
+    pgmq_dlq: str = Field(default="posnet_events_dlq", alias="PGMQ_DLQ_DEFAULT")
+    pgmq_visibility_timeout: int = Field(default=30, alias="PGMQ_VISIBILITY_TIMEOUT")
+    pgmq_max_retry: int = Field(default=5, alias="PGMQ_MAX_RETRY")
+
 
 @lru_cache
 def get_settings() -> Settings:

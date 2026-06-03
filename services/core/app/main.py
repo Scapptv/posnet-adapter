@@ -22,9 +22,12 @@ from redis.asyncio import Redis
 from slowapi.middleware import SlowAPIASGIMiddleware
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from libs.eventbus import EventHandler
+
 from .api.health import router as health_router
 from .config import Settings, get_settings
 from .errors import register_exception_handlers
+from .eventbus_workers import EventBusWorkers, build_eventbus_config, log_event_handler
 from .logging_config import configure_logging
 from .middleware.logging import LoggingMiddleware
 from .middleware.request_id import RequestIdMiddleware
@@ -48,19 +51,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.redis = redis
     # JWT verifier shares the app Redis for JWKS caching (AI-1.9.3).
     app.state.token_verifier = build_token_verifier(settings, redis)
+
+    # EventBus relay + consumer on the owner (RLS-exempt) session factory — the
+    # cross-tenant role they need to drain every tenant's outbox (AI-1.9.5).
+    workers: EventBusWorkers | None = None
+    if settings.eventbus_enabled:
+        workers = EventBusWorkers(
+            app.state.sessionmaker, build_eventbus_config(settings), app.state.event_handler
+        )
+        await workers.ensure_queues(engine)
+        workers.start()
+    app.state.eventbus_workers = workers
+
     try:
         yield
     finally:
+        if workers is not None:
+            await workers.stop()
         await redis.aclose()
         await engine.dispose()
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None, *, event_handler: EventHandler | None = None
+) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(json_logs=settings.environment != "local")
 
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
     app.state.settings = settings
+    # Consumed by the lifespan; foundation default just logs (AI-2 injects a dispatcher).
+    app.state.event_handler = event_handler or log_event_handler
 
     register_exception_handlers(app)
 

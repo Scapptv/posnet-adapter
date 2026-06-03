@@ -15,6 +15,7 @@ def _app(database_url: str, redis_url: str) -> object:
             database_url=database_url,
             redis_url=redis_url,
             rate_limit_storage_uri="memory://",  # isolated per-app counter
+            eventbus_enabled=False,  # eventbus lifespan covered in test_eventbus_lifespan
         )
     )
 

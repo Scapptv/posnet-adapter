@@ -53,6 +53,7 @@ def _app() -> FastAPI:
             database_url="postgresql+psycopg://u@localhost/x",
             redis_url="redis://localhost:6379/0",
             rate_limit_storage_uri="memory://",  # isolated per-app counter
+            eventbus_enabled=False,  # no pgmq in unit tests
         )
     )
 

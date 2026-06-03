@@ -107,6 +107,7 @@ def _build_app(pg_url: str, redis_url: str) -> FastAPI:
             keycloak_url=_KC_URL,
             keycloak_realm="posnet",
             rate_limit_storage_uri="memory://",  # isolated per-app counter
+            eventbus_enabled=False,  # eventbus lifespan covered in test_eventbus_lifespan
         )
     )
 
