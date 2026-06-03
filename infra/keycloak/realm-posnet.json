@@ -57,7 +57,9 @@
       "emailVerified": true,
       "firstName": "Test",
       "lastName": "Owner",
-      "credentials": [{ "type": "password", "value": "owner-dev-2026", "temporary": false }],
+      "credentials": [
+        { "type": "password", "value": "${env.POSNET_OWNER_PASSWORD}", "temporary": false }
+      ],
       "realmRoles": ["tenant_admin"]
     }
   ]

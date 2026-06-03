@@ -74,3 +74,12 @@ def test_no_client_holds_a_secret() -> None:
 def test_seed_user_has_tenant_admin_role() -> None:
     owner = next(u for u in _REALM["users"] if u["username"] == "owner")
     assert "tenant_admin" in owner["realmRoles"]
+
+
+@pytest.mark.unit
+def test_seed_user_password_is_env_placeholder_not_literal() -> None:
+    # A6 (ADR-0016): no hardcoded credential in this public file. The dev owner
+    # password is substituted from the environment at realm-import time.
+    owner = next(u for u in _REALM["users"] if u["username"] == "owner")
+    cred = next(c for c in owner["credentials"] if c["type"] == "password")
+    assert cred["value"].startswith("${env."), cred["value"]

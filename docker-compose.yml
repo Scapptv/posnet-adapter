@@ -70,6 +70,9 @@ services:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN_USER:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}  # pragma: allowlist secret
       KC_HEALTH_ENABLED: "true"
+      # Dev owner seed password — substituted into realm-posnet.json at import time
+      # (${env.POSNET_OWNER_PASSWORD}); keeps the credential out of the public realm file (A6).
+      POSNET_OWNER_PASSWORD: ${POSNET_OWNER_PASSWORD:-owner-dev-2026}  # pragma: allowlist secret
     volumes:
       # AI-1.7: posnet realm imported on start (--import-realm reads this dir).
       - ./infra/keycloak:/opt/keycloak/data/import:ro
