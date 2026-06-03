@@ -31,6 +31,7 @@ from .config import Settings, get_settings
 from .errors import register_exception_handlers
 from .eventbus_workers import EventBusWorkers, build_eventbus_config, log_event_handler
 from .i18n import build_translator
+from .idempotency import idempotent
 from .logging_config import configure_logging
 from .middleware.logging import LoggingMiddleware
 from .middleware.request_id import RequestIdMiddleware
@@ -113,8 +114,10 @@ def create_app(
 
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
     app.state.settings = settings
-    # Consumed by the lifespan; foundation default just logs (AI-2 injects a dispatcher).
-    app.state.event_handler = event_handler or log_event_handler
+    # Every consumer handler runs inside the idempotency wrapper (AI-2.H4, audit
+    # B5): at-least-once delivery means a redelivered event_id must short-circuit
+    # before the handler's external side effect.
+    app.state.event_handler = idempotent(event_handler or log_event_handler)
     app.state.tracer_provider = None  # set by setup_telemetry below (if enabled)
     # Process-wide, content-only — built once (no IO), shared by i18n requests.
     app.state.translator = build_translator()

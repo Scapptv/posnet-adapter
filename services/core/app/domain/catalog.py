@@ -1,4 +1,4 @@
-"""Tenant-scoped catalog management (AI-2.1).
+"""Tenant-scoped catalog management (AI-2.1 + AI-2.H4 event emit).
 
 Products, their variants (SKU/barcode-centric) and images. Every function runs
 under the caller's RLS-scoped session, so reads/writes are confined to the tenant.
@@ -7,8 +7,9 @@ with an RLS-scoped SELECT — a FK alone would accept another tenant's id (the F
 check bypasses RLS), so the lookup is what enforces the boundary (cf. AI-1.16
 ``assign_role``).
 
-No outbox events yet — the sync engine that consumes catalog changes lands with
-the adapter framework (AI-2.5); this phase is the source-of-truth CRUD.
+Mutations (``create_product`` / ``add_variant``) enqueue a transactional outbox
+event after the business write, so the sync engine can project the change onto
+external channels (AI-2.H4, audit B1). The event commits with the row.
 """
 
 from __future__ import annotations
@@ -21,8 +22,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from libs.common import ConflictError, NotFoundError
+from libs.eventbus import Event, enqueue
 
 from ..infrastructure.db.models import Product, ProductImage, Store, Variant
+from .events import CATALOG_PRODUCT_CREATED, CATALOG_VARIANT_ADDED
 
 
 async def create_product(
@@ -57,6 +60,19 @@ async def create_product(
         )
     await session.flush()
     await session.refresh(product)
+    await enqueue(
+        session,
+        Event(
+            event_type=CATALOG_PRODUCT_CREATED,
+            tenant_id=tenant_id,
+            payload={
+                "product_id": str(product.id),
+                "store_id": str(store_id) if store_id is not None else None,
+                "name": name,
+                "currency": currency,
+            },
+        ),
+    )
     return product
 
 
@@ -139,6 +155,20 @@ async def add_variant(
             "a variant with this sku or barcode already exists in this tenant"
         ) from exc
     await session.refresh(variant)
+    await enqueue(
+        session,
+        Event(
+            event_type=CATALOG_VARIANT_ADDED,
+            tenant_id=tenant_id,
+            payload={
+                "product_id": str(product_id),
+                "variant_id": str(variant.id),
+                "sku": sku,
+                "barcode": barcode,
+                "base_price_minor": base_price_minor,
+            },
+        ),
+    )
     return variant
 
 

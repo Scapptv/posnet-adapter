@@ -21,8 +21,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from libs.common import ConflictError, NotFoundError, ValidationError
+from libs.eventbus import Event, enqueue
 
 from ..infrastructure.db.models import Inventory, StockMovement, Variant, Warehouse
+from .events import INVENTORY_MOVEMENT_APPLIED
 
 MOVEMENT_KINDS = frozenset({"in", "out", "reserve", "unreserve", "adjust"})
 
@@ -142,4 +144,20 @@ async def apply_movement(
     )
     await session.flush()
     await session.refresh(inv)
+    await enqueue(
+        session,
+        Event(
+            event_type=INVENTORY_MOVEMENT_APPLIED,
+            tenant_id=tenant_id,
+            payload={
+                "variant_id": str(variant_id),
+                "warehouse_id": str(warehouse_id),
+                "kind": kind,
+                "qty": qty,
+                "new_qty": inv.qty,
+                "new_reserved_qty": inv.reserved_qty,
+                "version": inv.version,
+            },
+        ),
+    )
     return inv

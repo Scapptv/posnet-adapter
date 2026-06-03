@@ -20,8 +20,10 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from libs.common import NotFoundError
+from libs.eventbus import Event, enqueue
 
 from ..infrastructure.db.models import PriceOverride, Product, Store, Variant
+from .events import PRICING_OVERRIDE_SET
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,21 @@ async def set_override(
     session.add(override)
     await session.flush()
     await session.refresh(override)
+    await enqueue(
+        session,
+        Event(
+            event_type=PRICING_OVERRIDE_SET,
+            tenant_id=tenant_id,
+            payload={
+                "override_id": str(override.id),
+                "variant_id": str(variant_id),
+                "store_id": str(store_id) if store_id is not None else None,
+                "price_minor": price_minor,
+                "valid_from": valid_from.isoformat() if valid_from is not None else None,
+                "valid_to": valid_to.isoformat() if valid_to is not None else None,
+            },
+        ),
+    )
     return override
 
 
