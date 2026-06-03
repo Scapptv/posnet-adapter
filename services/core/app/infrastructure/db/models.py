@@ -109,6 +109,23 @@ class UserRole(Base, UUIDPrimaryKeyMixin):
     store_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
 
+class FeatureFlag(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Per-tenant override of a flag declared in the app's ``FlagRegistry`` (AI-1.17).
+
+    A row exists only where a tenant diverges from the built-in default; the
+    effective set is the registry defaults overlaid with these rows.
+    """
+
+    __tablename__ = "feature_flags"
+    __table_args__ = (UniqueConstraint("tenant_id", "key", name="uq_feature_flags_tenant_key"),)
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    key: Mapped[str] = mapped_column(String(100), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 

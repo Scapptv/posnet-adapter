@@ -136,6 +136,9 @@ ignore = [
 "tests/**/*.py" = ["S", "DTZ"]
 "services/*/tests/**/*.py" = ["S", "DTZ"]
 "scripts/**/*.py" = ["T20"]  # scripts may print
+# i18n message catalog: az/tr dotless-ı and ru Cyrillic are intentional content,
+# not homoglyph mistakes (RUF001 ambiguous-unicode).
+"services/core/app/i18n.py" = ["RUF001"]
 
 [tool.ruff.format]
 quote-style = "double"

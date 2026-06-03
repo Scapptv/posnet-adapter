@@ -30,6 +30,7 @@ from .api.v1 import api_router
 from .config import Settings, get_settings
 from .errors import register_exception_handlers
 from .eventbus_workers import EventBusWorkers, build_eventbus_config, log_event_handler
+from .i18n import build_translator
 from .logging_config import configure_logging
 from .middleware.logging import LoggingMiddleware
 from .middleware.request_id import RequestIdMiddleware
@@ -93,6 +94,8 @@ def create_app(
     # Consumed by the lifespan; foundation default just logs (AI-2 injects a dispatcher).
     app.state.event_handler = event_handler or log_event_handler
     app.state.tracer_provider = None  # set by setup_telemetry below (if enabled)
+    # Process-wide, content-only — built once (no IO), shared by i18n requests.
+    app.state.translator = build_translator()
 
     register_exception_handlers(app)
 
