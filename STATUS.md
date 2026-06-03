@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18)
-**Cari task:** AI-2.3 (Pricing — base price + currency; rule engine sonra)
-**Son commit:** `028f84b` — feat(core): AI-2.2 inventory + anti-oversell (stock movements)
-**Son uğurlu verify:** 2026-06-03; AI-2.2 TAM (inventory: stock movement engine + reserve/unreserve anti-oversell + optimistic version: 29 yeni test, **ümumi coverage 100%**, 318 test)
+**Cari task:** AI-2.4 (Shift/vardiya aç/bağla + cash management)
+**Son commit:** `e4dfa86` — feat(core): AI-2.3 pricing — effective price + overrides
+**Son uğurlu verify:** 2026-06-03; AI-2.3 TAM (pricing: resolve_price base⊕override + store/vaxt precedence: 15 yeni test, **ümumi coverage 100%**, 333 test)
 **Vəziyyət:** AI-2 IN_PROGRESS (AI-2.1 ✅). GitHub: `Scapptv/posnet-adapter` (public) push olundu. **CI bloklu** — hesab "failed payment" (billing-də həll olunmalı; kod problemi yox, lokal yaşıl). `v0.1.0-alpha` tag CI yaşılından sonra.
 
 ---
@@ -35,7 +35,10 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - migration **0006**: warehouses/inventory/stock_movements (RLS + grant); `inventory(qty, reserved_qty, min_qty, version, UNIQUE(variant_id,warehouse_id))`
   - domain/inventory.py: `_effect` (pure: in/out/reserve/unreserve/adjust + anti-oversell guard) · `apply_movement` (variant/warehouse RLS-lookup→404 · `SELECT FOR UPDATE` lock · version++ · movement insert · `expected_version` optimistic check) · create/list_warehouse · get_inventory
   - API: `POST/GET /v1/warehouses` · `POST /v1/inventory/movements` (vahid yazı yolu) · `GET /v1/inventory?variant_id` (`available` computed). Gating: inventory:read/write
-- [ ] AI-2.3 Pricing (base price + currency; rule engine sonra)
+- [x] **AI-2.3** Pricing — effective price + overrides ✅ — 2026-06-03
+  - migration **0007**: `price_overrides(tenant_id, variant_id, store_id?, price_minor, valid_from?, valid_to?)` (RLS + grant)
+  - domain/pricing.py: `set_override` (variant/store RLS-lookup→404) · `resolve_price` (base ⊕ aktiv override; precedence store-specific > tenant-wide, newest wins; validity window). `ResolvedPrice` (base/effective/source/override_id)
+  - API: `POST /v1/variants/{id}/price-overrides` · `GET /v1/variants/{id}/price?store_id&at` (default now). Gating pricing:read/write. Tam rule engine (percent/tiered) təxir
 - [ ] AI-2.4 Shift/vardiya (aç/bağla) + cash management
 - [ ] AI-2.5-POS Sale/çek (yarat → stok düş, atomik) + X/Z report
 - [ ] AI-2.6 CanonicalProduct/Inventory/Price map (catalog ↔ canonical_model — hub üçün kritik)
