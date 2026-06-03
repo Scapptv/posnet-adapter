@@ -200,3 +200,38 @@ async def test_unsupported_alg_rejected(redis_client: Redis) -> None:
     verifier = TokenVerifier(_config(), JwksClient(_config(), redis_client))
     with pytest.raises(AuthError):
         await verifier.verify(hs256)
+
+
+def _signed(private_pem: str, claims: dict[str, object]) -> str:
+    return jwt.encode(claims, private_pem, algorithm="RS256", headers={"kid": _KID})
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "drop",
+    ["exp", "iat", "sub"],
+    ids=["missing-exp", "missing-iat", "missing-sub"],
+)
+async def test_token_missing_required_claim_rejected(
+    signing_key: tuple[str, str], redis_client: Redis, mocked_jwks: respx.Route, drop: str
+) -> None:
+    # A7 (ADR-0016): exp/iat/sub are mandatory — a token lacking any is rejected.
+    private_pem, _ = signing_key
+    now = int(time.time())
+    claims: dict[str, object] = {"iss": _ISSUER, "sub": "u", "iat": now, "exp": now + 60}
+    del claims[drop]
+    verifier = TokenVerifier(_config(), JwksClient(_config(), redis_client))
+    with pytest.raises(AuthError):
+        await verifier.verify(_signed(private_pem, claims))
+
+
+@pytest.mark.integration
+async def test_token_empty_subject_rejected(
+    signing_key: tuple[str, str], redis_client: Redis, mocked_jwks: respx.Route
+) -> None:
+    private_pem, _ = signing_key
+    now = int(time.time())
+    claims = {"iss": _ISSUER, "sub": "   ", "iat": now, "exp": now + 60}  # present but blank
+    verifier = TokenVerifier(_config(), JwksClient(_config(), redis_client))
+    with pytest.raises(AuthError):
+        await verifier.verify(_signed(private_pem, claims))

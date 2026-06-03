@@ -13,10 +13,20 @@ from libs.auth import AuthConfig, JwksClient, TokenVerifier
 
 from .config import Settings
 
+# Audience verification is optional only in these (non-deployed) environments;
+# anywhere else a token's ``aud`` MUST be checked against a configured value
+# (audit A7, ADR-0016) — empty audiences there is a misconfiguration.
+_AUDIENCE_OPTIONAL_ENVS = frozenset({"local", "test"})
+
 
 def build_auth_config(settings: Settings) -> AuthConfig:
     issuer = f"{settings.keycloak_url.rstrip('/')}/realms/{settings.keycloak_realm}"
     audiences = tuple(a.strip() for a in settings.keycloak_audiences.split(",") if a.strip())
+    if not audiences and settings.environment not in _AUDIENCE_OPTIONAL_ENVS:
+        raise ValueError(
+            "KEYCLOAK_AUDIENCES must be set outside local/test "
+            f"(environment={settings.environment!r}); JWT audience is enforced (A7)"
+        )
     return AuthConfig(
         issuer=issuer,
         jwks_url=f"{issuer}/protocol/openid-connect/certs",
