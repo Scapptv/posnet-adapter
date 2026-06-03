@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.17 (Feature flags + i18n backend)
-**Son commit:** `0970951` — feat(core): AI-1.16 user/role CRUD + assignment
-**Son uğurlu verify:** 2026-06-03; AI-1.16 TAM (user/role CRUD + assignment, tenant-scoped RLS: 16 yeni test, **ümumi coverage 100%**, 206 test)
+**Cari task:** AI-1.18 (Health probes + graceful shutdown + DB pool + backup)
+**Son commit:** `96061aa` — feat(core): AI-1.17 feature flags + i18n backend
+**Son uğurlu verify:** 2026-06-03; AI-1.17 TAM (feature flags + i18n backend: 56 yeni test, **ümumi coverage 100%**, 262 test)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -86,7 +86,11 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 - [x] **AI-1.14** pgmq publisher + outbox + consumer + DLQ — hub onurğası ✅ (2026-06-02, ADR-0013)
 - [x] **AI-1.15** Tenant onboarding API (`POST /v1/tenants`, super_admin → owner cross-tenant write) + admin user + `identity.tenant.onboarded` outbox event; idempotent `seed_first_tenant` + `scripts/seed_data.py` (make seed) ✅ — 2026-06-03
 - [x] **AI-1.16** User/Role/Permission CRUD (tenant-scoped, `tenant_admin`): `POST/GET /v1/users`, `POST/GET /v1/roles`(+permissions), `POST /v1/users/{id}/roles` (assign); RLS izolyasiya + cross-tenant assign 404 (RLS lookup, FK leak qarşısı); `require_tenant` dep ✅ — 2026-06-03
-- [ ] AI-1.17 Feature flags + i18n backend
+- [x] **AI-1.17** Feature flags + i18n backend ✅ — 2026-06-03
+  - `libs/i18n` (mexanizm): Accept-Language parse (q-sıralama) + `negotiate_locale` (Babel); `Translator` fallback locale→default→key (format gap → template toxunulmaz)
+  - core: az(default)/en/tr/ru kataloqları · `get_locale` dep (`?locale=` override → header → default) · translator app.state-də · `GET /v1/i18n/messages` **auth-suz** (login ekranı üçün) negotiated kataloqu qaytarır
+  - `libs/feature_flags`: `FlagRegistry` (default-lar + `resolve(overrides)`; naməlum açar iqnor) · `UnknownFlagError` write-validasiyası; REGISTRY: marketplace_sync/online_storefront/delivery_integration (off) + multi_store (on)
+  - migration **0004** `feature_flags` (tenant_id,key,enabled, unique) + RLS policy + **posnet_app GRANT** (0002 blanket grant yalnız mövcud cədvəlləri tuturdu); `GET /v1/feature-flags` (tenant üzvü) · `PUT /v1/feature-flags/{key}` (tenant_admin, naməlum→404); upsert + RLS izolyasiya
 - [ ] AI-1.18 Health probes + graceful shutdown + DB pool + backup
 
 **G1 acceptance:** RLS izolasiya · OIDC round-trip · migration up/down/up · pgmq publish→consume→DLQ · coverage ≥80% · OTel trace · tag v0.1.0-alpha.
@@ -103,8 +107,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Gate vəziyyəti
 - **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
-- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM** · OTel trace + Prometheus metrics ✅ · tenant onboarding API + seed ✅ · user/role CRUD (tenant RLS) ✅;
-  qalan: flags/i18n(1.17) · health/shutdown(1.18) · `v0.1.0-alpha` tag
+- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM** · OTel trace + Prometheus metrics ✅ · tenant onboarding API + seed ✅ · user/role CRUD (tenant RLS) ✅ · feature flags + i18n backend ✅;
+  qalan: health/shutdown(1.18) · `v0.1.0-alpha` tag
 - G2 (POS Core): canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
 - **G-V (Validasiya):** retail satıcı demo (kill/continue)
