@@ -26,6 +26,7 @@ from .errors import register_exception_handlers
 from .logging_config import configure_logging
 from .middleware.logging import LoggingMiddleware
 from .middleware.request_id import RequestIdMiddleware
+from .security import build_token_verifier
 
 
 @asynccontextmanager
@@ -41,6 +42,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.engine = engine
     app.state.sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
     app.state.redis = redis
+    # JWT verifier shares the app Redis for JWKS caching (AI-1.9.3).
+    app.state.token_verifier = build_token_verifier(settings, redis)
     try:
         yield
     finally:

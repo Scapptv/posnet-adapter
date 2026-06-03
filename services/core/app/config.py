@@ -32,8 +32,18 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=20, alias="DATABASE_POOL_SIZE")
     db_max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
     db_pool_recycle: int = Field(default=3600, alias="DATABASE_POOL_RECYCLE")
+    # Non-owner, RLS-enforced role the request pipeline switches into per request
+    # (SET LOCAL ROLE) so tenant isolation applies (ADR-0013/0015).
+    db_app_role: str = Field(default="posnet_app", alias="DATABASE_APP_ROLE")
 
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
+
+    # ---- Keycloak / auth (AI-1.9.3) ----
+    keycloak_url: str = Field(default="http://localhost:8080", alias="KEYCLOAK_URL")
+    keycloak_realm: str = Field(default="posnet", alias="KEYCLOAK_REALM")
+    # Comma-separated; empty = audience check disabled (foundation default, ADR-0014).
+    keycloak_audiences: str = Field(default="", alias="KEYCLOAK_AUDIENCES")
+    jwks_cache_ttl_seconds: int = Field(default=3600, alias="JWKS_CACHE_TTL_SECONDS")
 
 
 @lru_cache

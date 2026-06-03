@@ -62,6 +62,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
     )
     email: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Keycloak ``sub`` — globally unique link to the IdP identity. Tenant is
+    # resolved per request from this column (ADR-0015); NULL until onboarded.
+    external_subject: Mapped[str | None] = mapped_column(String(255), unique=True)
     phone: Mapped[str | None] = mapped_column(String(20))
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("false"))
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'"))
