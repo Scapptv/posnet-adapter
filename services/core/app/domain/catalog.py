@@ -17,9 +17,10 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from libs.common import NotFoundError
+from libs.common import ConflictError, NotFoundError
 
 from ..infrastructure.db.models import Product, ProductImage, Store, Variant
 
@@ -129,19 +130,37 @@ async def add_variant(
         cost_price_minor=cost_price_minor,
     )
     session.add(variant)
-    await session.flush()  # raises IntegrityError on duplicate (product_id, sku)
+    try:
+        # Trips on UNIQUE(tenant_id, sku) or the partial UNIQUE(tenant_id, barcode)
+        # WHERE NOT NULL (migration 0010, AI-2.H2). Both shapes resolve to 409.
+        await session.flush()
+    except IntegrityError as exc:
+        raise ConflictError(
+            "a variant with this sku or barcode already exists in this tenant"
+        ) from exc
     await session.refresh(variant)
     return variant
 
 
 async def find_variant_by_barcode(session: AsyncSession, barcode: str) -> Variant | None:
-    """POS scan lookup — the (RLS-scoped) variant carrying ``barcode``, if any."""
+    """POS scan lookup — the (RLS-scoped) variant carrying ``barcode``, if any.
+
+    The tenant-scoped partial UNIQUE on ``(tenant_id, barcode)`` (migration 0010)
+    means at most one variant ever matches; the ``ORDER BY id`` is a determinism
+    backstop in case the constraint is ever relaxed (audit A2).
+    """
     return (
-        await session.execute(select(Variant).where(Variant.barcode == barcode).limit(1))
+        await session.execute(
+            select(Variant).where(Variant.barcode == barcode).order_by(Variant.id).limit(1)
+        )
     ).scalar_one_or_none()
 
 
 async def find_variant_by_sku(session: AsyncSession, sku: str) -> Variant | None:
+    """POS scan lookup by SKU. Tenant-scoped UNIQUE(tenant_id, sku) makes this
+    deterministic; ``ORDER BY id`` backstops it (audit A2)."""
     return (
-        await session.execute(select(Variant).where(Variant.sku == sku).limit(1))
+        await session.execute(
+            select(Variant).where(Variant.sku == sku).order_by(Variant.id).limit(1)
+        )
     ).scalar_one_or_none()

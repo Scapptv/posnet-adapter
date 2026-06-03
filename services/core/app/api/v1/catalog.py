@@ -11,11 +11,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from libs.auth import Principal
-from libs.common import ConflictError, NotFoundError, ValidationError, validate_currency_code
+from libs.common import NotFoundError, ValidationError, validate_currency_code
 
 from ...domain.catalog import (
     add_variant,
@@ -163,20 +162,17 @@ async def add_variant_(
     tenant_id: UUID = Depends(require_tenant),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> VariantResponse:
-    try:
-        variant = await add_variant(
-            session,
-            tenant_id=tenant_id,
-            product_id=product_id,
-            sku=body.sku,
-            base_price_minor=body.base_price_minor,
-            barcode=body.barcode,
-            name=body.name,
-            attributes=body.attributes,
-            cost_price_minor=body.cost_price_minor,
-        )
-    except IntegrityError as exc:
-        raise ConflictError("a variant with this sku already exists for the product") from exc
+    variant = await add_variant(
+        session,
+        tenant_id=tenant_id,
+        product_id=product_id,
+        sku=body.sku,
+        base_price_minor=body.base_price_minor,
+        barcode=body.barcode,
+        name=body.name,
+        attributes=body.attributes,
+        cost_price_minor=body.cost_price_minor,
+    )
     return VariantResponse.model_validate(variant)
 
 

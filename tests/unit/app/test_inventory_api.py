@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy.exc import IntegrityError
 
 from libs.common import ConflictError, ValidationError
 from services.core.app.api.v1.inventory import MovementRequest, WarehouseCreateRequest
-from services.core.app.domain.inventory import _effect
+from services.core.app.domain.inventory import _effect, apply_movement
 
 _VARIANT = "11111111-1111-1111-1111-111111111111"
 _WAREHOUSE = "22222222-2222-2222-2222-222222222222"
@@ -89,3 +92,43 @@ def test_movement_request_accepts_adjust_negative() -> None:
 def test_movement_request_rejects_invalid(overrides: dict[str, Any]) -> None:
     with pytest.raises(PydanticValidationError):
         MovementRequest(variant_id=_VARIANT, warehouse_id=_WAREHOUSE, **overrides)
+
+
+# ---- apply_movement IntegrityError -> ConflictError (AI-2.H2, audit A3) ----
+
+
+@pytest.mark.unit
+async def test_apply_movement_first_create_race_maps_to_conflict() -> None:
+    """The first-create race path: SELECT FOR UPDATE returns None (no row yet),
+    we INSERT, and a concurrent writer beat us to the same ``(variant, warehouse)``
+    UNIQUE. The flush raises IntegrityError, which must surface as ConflictError
+    (HTTP 409) rather than leaking as HTTP 500."""
+    variant_id, warehouse_id, tenant_id = uuid4(), uuid4(), uuid4()
+
+    variant_row, warehouse_row, no_inventory = (object(),), (object(),), None
+
+    select_results = [
+        # Variant lookup (variant exists)
+        MagicMock(first=MagicMock(return_value=variant_row)),
+        # Warehouse lookup (warehouse exists)
+        MagicMock(first=MagicMock(return_value=warehouse_row)),
+        # Inventory SELECT FOR UPDATE — returns None, so we take the INSERT path
+        MagicMock(scalar_one_or_none=MagicMock(return_value=no_inventory)),
+    ]
+
+    session = MagicMock()
+    session.execute = AsyncMock(side_effect=select_results)
+    session.add = MagicMock()
+    session.flush = AsyncMock(
+        side_effect=IntegrityError("INSERT", params=None, orig=Exception("dup key"))
+    )
+
+    with pytest.raises(ConflictError):
+        await apply_movement(
+            session,
+            tenant_id=tenant_id,
+            variant_id=variant_id,
+            warehouse_id=warehouse_id,
+            kind="in",
+            qty=1,
+        )

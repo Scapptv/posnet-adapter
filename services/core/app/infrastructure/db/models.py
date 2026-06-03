@@ -14,6 +14,7 @@ from sqlalchemy import (
     TIMESTAMP,
     BigInteger,
     Boolean,
+    CheckConstraint,
     ForeignKey,
     Index,
     Integer,
@@ -197,8 +198,25 @@ class Product(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 
 class Variant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Tenant-scoped SKU/barcode (AI-2.H2, migration 0010).
+
+    Adapter contracts key by SKU, so uniqueness is tenant-wide — a POS scan or a
+    channel push resolves to exactly one variant. ``barcode`` uniqueness is
+    partial (only the non-NULL ones), so legacy variants without a barcode keep
+    coexisting.
+    """
+
     __tablename__ = "variants"
-    __table_args__ = (UniqueConstraint("product_id", "sku", name="uq_variants_product_sku"),)
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "sku", name="uq_variants_tenant_sku"),
+        Index(
+            "uq_variants_tenant_barcode",
+            "tenant_id",
+            "barcode",
+            unique=True,
+            postgresql_where=text("barcode IS NOT NULL"),
+        ),
+    )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
@@ -248,8 +266,14 @@ class Warehouse(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
 class Inventory(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "inventory"
+    # DB-level anti-oversell backstop (AI-2.H2, migration 0010). The domain
+    # ``_effect`` guard catches violations first; these CHECKs close the gap if
+    # any future code path skips it.
     __table_args__ = (
         UniqueConstraint("variant_id", "warehouse_id", name="uq_inventory_variant_warehouse"),
+        CheckConstraint("qty >= 0", name="ck_inventory_qty_nonneg"),
+        CheckConstraint("reserved_qty >= 0", name="ck_inventory_reserved_nonneg"),
+        CheckConstraint("reserved_qty <= qty", name="ck_inventory_reserved_le_qty"),
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(

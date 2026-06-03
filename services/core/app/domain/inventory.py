@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from libs.common import ConflictError, NotFoundError, ValidationError
@@ -113,7 +114,16 @@ async def apply_movement(
             version=0,
         )
         session.add(inv)
-        await session.flush()
+        try:
+            # First-create race: a concurrent movement may have already inserted
+            # the row between our SELECT FOR UPDATE and this INSERT. The UNIQUE
+            # (variant_id, warehouse_id) constraint catches it; the caller can
+            # retry against the now-existing row (audit A3, AI-2.H2).
+            await session.flush()
+        except IntegrityError as exc:
+            raise ConflictError(
+                "inventory level was concurrently created; retry the movement"
+            ) from exc
 
     if expected_version is not None and expected_version != inv.version:
         raise ConflictError("inventory version is stale")
