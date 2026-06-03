@@ -1,10 +1,10 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18)
-**Cari task:** AI-2.1 (Catalog domain + CRUD API — product/variant/barkod axtarış)
-**Son commit:** `a8b5402` — feat(core): AI-1.18 health/shutdown + DB pool + backup
-**Son uğurlu verify:** 2026-06-03; AI-1.18 TAM (health/shutdown drain + pool_pre_ping + DB backup: 7 yeni test, **ümumi coverage 100%**, 269 test)
-**Vəziyyət:** G1 ✅ ŞƏRTİ TƏSDİQ (kod ✓ lokal) — AI-2 başlayır. **Paralel (insan):** GitHub repo → CI yaşıl → sonra `v0.1.0-alpha` tag
+**Cari task:** AI-2.2 (Inventory — stock movement + optimistic lock + reserve/unreserve)
+**Son commit:** `9ba65b2` — feat(core): AI-2.1 catalog domain + CRUD API
+**Son uğurlu verify:** 2026-06-03; AI-2.1 TAM (catalog domain + CRUD API + barkod/sku lookup + FTS: 20 yeni test, **ümumi coverage 100%**, 289 test)
+**Vəziyyət:** AI-2 IN_PROGRESS (AI-2.1 ✅). GitHub: `Scapptv/posnet-adapter` (public) push olundu. **CI bloklu** — hesab "failed payment" (billing-də həll olunmalı; kod problemi yox, lokal yaşıl). `v0.1.0-alpha` tag CI yaşılından sonra.
 
 ---
 
@@ -20,6 +20,26 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 > 🔄 Aktiv yol: AI-0 ✅ → **AI-1 (Foundation)** → AI-2 (POS Core) → AI-2.5 (Adapter framework, MVP) → G-V.
 > Detal: `docs/adr/0012-integration-hub-reframe.md`.
+
+---
+
+## Faza AI-2 — POS CORE (retail beachhead; CARİ)
+
+**Məqsəd:** Catalog + inventory + pricing + shift + sale = **canonical tək həqiqət mənbəyi** (hub-a hazır).
+
+- [x] **AI-2.1** Catalog domain + CRUD API ✅ — 2026-06-03
+  - migration **0005**: products/variants/product_images (RLS + posnet_app grant, 0004 pattern); `gin(to_tsvector('simple', name))` dil-agnostik ad axtarışı; sku/barcode index
+  - domain/catalog.py (RLS-scoped): `create_product`(+images) · `list_products` (FTS plainto_tsquery) · `get_product` (variant+image detail) · `add_variant` · `find_variant_by_barcode/sku`. store_id/product_id RLS-lookup ilə yoxlanır → cross-tenant 404 (FK leak qarşısı)
+  - API: `POST/GET /v1/products` · `GET /v1/products/{id}` · `POST /v1/products/{id}/variants` · `GET /v1/variants/lookup?barcode|sku` (POS scan). Gating: `catalog:read` (bütün store rolları) / `catalog:write` (store_manager/clerk/tenant_admin). Money integer-minor; currency ISO-4217 (default AZN)
+- [ ] AI-2.2 Inventory (stock movement journal + optimistic lock + reserve/unreserve)
+- [ ] AI-2.3 Pricing (base price + currency; rule engine sonra)
+- [ ] AI-2.4 Shift/vardiya (aç/bağla) + cash management
+- [ ] AI-2.5-POS Sale/çek (yarat → stok düş, atomik) + X/Z report
+- [ ] AI-2.6 CanonicalProduct/Inventory/Price map (catalog ↔ canonical_model — hub üçün kritik)
+- [ ] AI-2.7 Admin-web minimal (məhsul/stok idarəsi)
+- [ ] AI-2.8 Flutter kassir minimal (offline-first satış) — opsional, gec OK
+
+**GATE G2:** məhsul yarat→barkod axtar→satış→stok düş E2E · canonical map · coverage ≥80% (pul path 95%) · make verify · CI yaşıl.
 
 ---
 
@@ -105,7 +125,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 - ✅ Toolchain: Python 3.12 (uv) · make · Docker v29.4.3 · node v24.8 + pnpm 10.18
 - ✅ İki ayrı posnet layihəsi (`adapter_*` vs help-center `posnet_*`); port toqquşmaları həll
 - ✅ pytest cov no-data fix; secrets baseline təmizləndi (lock/node_modules exclude)
-- ✅ **GitHub:** `Scapptv/posnet-adapter` (private) push olundu (59 commit, 2026-06-03); git identity = `Scapptv <scapptv@gmail.com>` (köhnə huseyn/hc kimlikləri hər yerdən silindi). CI ilk run `startup_failure` (yeni repo glitch) → re-trigger izlənilir.
+- ✅ **GitHub:** `Scapptv/posnet-adapter` (**public**) push olundu (2026-06-03); git identity = `Scapptv <scapptv@gmail.com>` (köhnə huseyn/hc kimlikləri tarixçə+config-dən silindi).
+- ⏳ **CI bloklu (hesab-tərəfli, kod yox):** Actions job-ları runner götürmür (0 step, log yox) — hesabda "recent payments failed" vəziyyəti Actions icrasını dayandırır. Billing təmiz ($0) görünür → ehtimal ödəniş-üsulu/verifikasiya. Həll: kart əlavə/billing → işləməsə GitHub Support. Public etmək "spending limit" hissəsini həll etdi (startup işləyir), "failed payment" hissəsi qalır. Lokal `make verify` + 289 test yaşıl.
 - ⏳ CVE remediation (ADR-0010): 3 CVE ignored — G7-də məcburi
 
 ## Gate vəziyyəti
