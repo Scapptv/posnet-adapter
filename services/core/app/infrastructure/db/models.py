@@ -195,6 +195,11 @@ class Product(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False, server_default=text("'AZN'"))
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'"))
+    # Online publish gate (AI-2.H5, migration 0011). Default false — explicit
+    # opt-in so adapters never push a product the operator hasn't released.
+    online_published: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
 
 
 class Variant(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -262,6 +267,12 @@ class Warehouse(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'store'"))
+    # Online-sellable stock gate (AI-2.H5, migration 0011). Default true — only
+    # the rows of warehouses with this flag set contribute to the canonical
+    # online ``available`` figure (B2B / showroom warehouses opt out).
+    is_online_sellable: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("true")
+    )
 
 
 class Inventory(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -393,3 +404,69 @@ class CashMovement(Base, UUIDPrimaryKeyMixin):
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+# ----------------------------------------------------------------------------
+# Sync domain (AI-2.H5, migration 0011) — channel definitions + variant-to-
+# external-listing mappings. Adapter framework (AI-2.5) reads listings to know
+# which external id / category / attribute payload to push per channel.
+# ----------------------------------------------------------------------------
+
+
+class Channel(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """A connected marketplace / delivery / booking platform (Trendyol, Birmarket, Wolt)."""
+
+    __tablename__ = "channels"
+    __table_args__ = (UniqueConstraint("tenant_id", "code", name="uq_channels_tenant_code"),)
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    code: Mapped[str] = mapped_column(String(50), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'active'"))
+    # Per-channel config placeholder (region, default warehouse, etc.) — never
+    # carries credentials; those live in Vault (LOCKED #8).
+    config: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+
+
+class ChannelListing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Variant ↔ external listing mapping per channel.
+
+    ``external_listing_id`` is the channel's own identifier (NULL until first
+    push). One listing per (channel, variant); external ids are unique within a
+    channel (enforced by a partial UNIQUE index on non-NULL values).
+    """
+
+    __tablename__ = "channel_listings"
+    __table_args__ = (
+        UniqueConstraint("channel_id", "variant_id", name="uq_channel_listings_channel_variant"),
+        Index(
+            "uq_channel_listings_channel_external",
+            "channel_id",
+            "external_listing_id",
+            unique=True,
+            postgresql_where=text("external_listing_id IS NOT NULL"),
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("channels.id"), nullable=False, index=True
+    )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("variants.id"), nullable=False, index=True
+    )
+    external_listing_id: Mapped[str | None] = mapped_column(String(200))
+    external_category: Mapped[str | None] = mapped_column(String(500))
+    external_attributes: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=text("'pending'")
+    )
+    last_synced_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
