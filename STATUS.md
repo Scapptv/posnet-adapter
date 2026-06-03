@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18)
-**Cari task:** AI-2.4 (Shift/vardiya aç/bağla + cash management)
-**Son commit:** `e4dfa86` — feat(core): AI-2.3 pricing — effective price + overrides
-**Son uğurlu verify:** 2026-06-03; AI-2.3 TAM (pricing: resolve_price base⊕override + store/vaxt precedence: 15 yeni test, **ümumi coverage 100%**, 333 test)
+**Cari task:** AI-2.5-POS (Sale/çek — yarat → stok düş, atomik + X/Z report)
+**Son commit:** `85977be` — feat(core): AI-2.4 shift/vardiya + cash management
+**Son uğurlu verify:** 2026-06-03; AI-2.4 TAM (shift aç/bağla + cash movements + cash summary, tək açıq vardiya partial-unique: 20 yeni test, **ümumi coverage 100%**, 351 test)
 **Vəziyyət:** AI-2 IN_PROGRESS (AI-2.1 ✅). GitHub: `Scapptv/posnet-adapter` (public) push olundu. **CI bloklu** — hesab "failed payment" (billing-də həll olunmalı; kod problemi yox, lokal yaşıl). `v0.1.0-alpha` tag CI yaşılından sonra.
 
 ---
@@ -39,7 +39,10 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - migration **0007**: `price_overrides(tenant_id, variant_id, store_id?, price_minor, valid_from?, valid_to?)` (RLS + grant)
   - domain/pricing.py: `set_override` (variant/store RLS-lookup→404) · `resolve_price` (base ⊕ aktiv override; precedence store-specific > tenant-wide, newest wins; validity window). `ResolvedPrice` (base/effective/source/override_id)
   - API: `POST /v1/variants/{id}/price-overrides` · `GET /v1/variants/{id}/price?store_id&at` (default now). Gating pricing:read/write. Tam rule engine (percent/tiered) təxir
-- [ ] AI-2.4 Shift/vardiya (aç/bağla) + cash management
+- [x] **AI-2.4** Shift/vardiya + cash management ✅ — 2026-06-03
+  - migration **0008**: `shifts(store_id, cashier_id, status, opening/closing_cash_minor, opened/closed_at)` + **partial UNIQUE(store_id,cashier_id) WHERE status='open'** (tək açıq vardiya) · `cash_movements(shift_id, kind[in/out], amount_minor, reason)`
+  - domain/shift.py: `open_shift` (RLS-lookup→404, ikiqat açılış→Conflict) · `close_shift` (already-closed→Conflict) · `record_cash` (bağlı vardiya→ValidationError) · list/get · `cash_summary` (expected = opening + in − out)
+  - API: `POST/GET /v1/shifts` · `GET /v1/shifts/{id}` (detail+summary) · `POST /{id}/close` · `POST /{id}/cash-movements`. Gating shift:read/write
 - [ ] AI-2.5-POS Sale/çek (yarat → stok düş, atomik) + X/Z report
 - [ ] AI-2.6 CanonicalProduct/Inventory/Price map (catalog ↔ canonical_model — hub üçün kritik)
 - [ ] AI-2.7 Admin-web minimal (məhsul/stok idarəsi)
