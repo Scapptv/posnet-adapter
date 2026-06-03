@@ -43,32 +43,46 @@ from .telemetry import build_telemetry_config
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
-    engine = create_async_engine(
-        settings.database_url,
-        pool_size=settings.db_pool_size,
-        max_overflow=settings.db_max_overflow,
-        pool_recycle=settings.db_pool_recycle,
-        pool_pre_ping=settings.db_pool_pre_ping,
-    )
+
+    def _engine(url: str):  # type: ignore[no-untyped-def]
+        return create_async_engine(
+            url,
+            pool_size=settings.db_pool_size,
+            max_overflow=settings.db_max_overflow,
+            pool_recycle=settings.db_pool_recycle,
+            pool_pre_ping=settings.db_pool_pre_ping,
+        )
+
+    # System/privileged pool (superuser): migrations are already applied; this
+    # pool serves cross-tenant work — eventbus workers, super_admin, onboarding.
+    system_engine = _engine(settings.database_url)
+    # App pool (non-owner ``posnet_app``): the per-request tenant-scoped path.
+    # Empty DATABASE_APP_URL falls back to the system pool (dev/test) — ADR-0017.
+    app_engine = _engine(settings.database_app_url) if settings.database_app_url else system_engine
+
     redis: Redis = Redis.from_url(settings.redis_url)
-    app.state.engine = engine
-    app.state.sessionmaker = async_sessionmaker(engine, expire_on_commit=False)
+    app.state.engine = system_engine
+    app.state.app_engine = app_engine
+    app.state.system_sessionmaker = async_sessionmaker(system_engine, expire_on_commit=False)
+    app.state.sessionmaker = async_sessionmaker(app_engine, expire_on_commit=False)
     app.state.redis = redis
     # JWT verifier shares the app Redis for JWKS caching (AI-1.9.3).
     app.state.token_verifier = build_token_verifier(settings, redis)
 
-    # DB span instrumentation needs the live engine (AI-1.13).
+    # DB span instrumentation needs the live engine(s) (AI-1.13).
     if settings.otel_enabled and app.state.tracer_provider is not None:
-        instrument_sqlalchemy(engine, app.state.tracer_provider)
+        instrument_sqlalchemy(system_engine, app.state.tracer_provider)
+        if app_engine is not system_engine:
+            instrument_sqlalchemy(app_engine, app.state.tracer_provider)
 
-    # EventBus relay + consumer on the owner (RLS-exempt) session factory — the
-    # cross-tenant role they need to drain every tenant's outbox (AI-1.9.5).
+    # EventBus relay + consumer on the system (RLS-exempt) session factory — the
+    # cross-tenant role they need to drain every tenant's outbox (AI-1.9.5, ADR-0017).
     workers: EventBusWorkers | None = None
     if settings.eventbus_enabled:
         workers = EventBusWorkers(
-            app.state.sessionmaker, build_eventbus_config(settings), app.state.event_handler
+            app.state.system_sessionmaker, build_eventbus_config(settings), app.state.event_handler
         )
-        await workers.ensure_queues(engine)
+        await workers.ensure_queues(system_engine)
         workers.start()
     app.state.eventbus_workers = workers
 
@@ -83,7 +97,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if workers is not None:
             await workers.stop()
         await redis.aclose()
-        await engine.dispose()
+        await system_engine.dispose()
+        if app_engine is not system_engine:
+            await app_engine.dispose()
 
 
 def create_app(

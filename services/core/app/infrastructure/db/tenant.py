@@ -19,10 +19,11 @@ import uuid
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Active user only: a disabled user must not acquire tenant context.
-_RESOLVE_TENANT_SQL = text(
-    "SELECT tenant_id FROM users WHERE external_subject = :subject AND status = 'active'"
-)
+# Active user only: a disabled user must not acquire tenant context. The lookup
+# is inherently cross-tenant (the tenant is not yet known), so it goes through a
+# SECURITY DEFINER function — the locked-down ``posnet_app`` pool cannot read the
+# table cross-tenant directly, but may call this narrow resolver (ADR-0017).
+_RESOLVE_TENANT_SQL = text("SELECT posnet_resolve_tenant(:subject)")
 _SET_TENANT_SQL = text("SELECT set_config('app.current_tenant', :tenant_id, true)")
 
 # Postgres identifier — guards the role name we must interpolate (SET LOCAL ROLE
@@ -35,7 +36,8 @@ async def resolve_tenant_id(session: AsyncSession, *, subject: str) -> uuid.UUID
     """Return the tenant of the active user linked to ``subject``, or ``None``."""
     result = await session.execute(_RESOLVE_TENANT_SQL, {"subject": subject})
     row = result.first()
-    if row is None:
+    # A scalar function always yields one row; an unknown/disabled subject -> NULL.
+    if row is None or row[0] is None:
         return None
     return uuid.UUID(str(row[0]))
 

@@ -25,10 +25,16 @@ class Settings(BaseSettings):
     environment: str = Field(default="local", alias="ENVIRONMENT")
 
     # NOTE: password-less default; real DATABASE_URL is supplied via env.
+    # System/privileged pool: migrations, super_admin, eventbus workers, onboarding
+    # (cross-tenant) connect here (owner/superuser).
     database_url: str = Field(
         default="postgresql+psycopg://posnet@localhost:5432/posnet_core",
         alias="DATABASE_URL",
     )
+    # App pool: the per-request, tenant-scoped path connects as the non-owner
+    # ``posnet_app`` role (RLS-enforced; a forgotten scope yields zero rows, never
+    # a leak — ADR-0017). Empty falls back to ``database_url`` (dev/test convenience).
+    database_app_url: str = Field(default="", alias="DATABASE_APP_URL")
     db_pool_size: int = Field(default=20, alias="DATABASE_POOL_SIZE")
     db_max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
     db_pool_recycle: int = Field(default=3600, alias="DATABASE_POOL_RECYCLE")

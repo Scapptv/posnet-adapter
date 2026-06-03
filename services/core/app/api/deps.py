@@ -77,16 +77,22 @@ async def get_tenant_session(
     principal: Principal = Depends(get_principal),
 ) -> AsyncIterator[AsyncSession]:
     """Yield a DB session scoped (via RLS) to the caller's tenant."""
-    sessionmaker: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
     settings: Settings = request.app.state.settings
 
-    async with sessionmaker() as session, session.begin():
-        if principal.is_super_admin:
-            # System role: stay in the owner login role (RLS-exempt) -> cross-tenant.
+    if principal.is_super_admin:
+        # System role: the privileged (RLS-exempt) pool -> cross-tenant (ADR-0017).
+        system_sessionmaker: async_sessionmaker[AsyncSession] = (
+            request.app.state.system_sessionmaker
+        )
+        async with system_sessionmaker() as session, session.begin():
             request.state.tenant_id = None
             yield session
-            return
+        return
 
+    # Regular caller: the locked-down ``posnet_app`` pool. The subject->tenant
+    # lookup uses the SECURITY DEFINER resolver, then the session is scoped.
+    sessionmaker: async_sessionmaker[AsyncSession] = request.app.state.sessionmaker
+    async with sessionmaker() as session, session.begin():
         tenant_id = await resolve_tenant_id(session, subject=principal.subject)
         if tenant_id is None:
             raise ForbiddenError("no active tenant membership for subject")
