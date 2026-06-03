@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import cast
+from uuid import UUID
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -92,3 +93,16 @@ async def get_tenant_session(
         await apply_tenant_scope(session, tenant_id, role=settings.db_app_role)
         request.state.tenant_id = tenant_id
         yield session
+
+
+async def require_tenant(
+    request: Request,
+    _session: AsyncSession = Depends(get_tenant_session),
+) -> UUID:
+    """The caller's resolved tenant id (depends on the scoped session so it runs
+    after resolution); 403 for a principal without a tenant (e.g. ``super_admin``),
+    since tenant-scoped management has no concrete tenant to act on."""
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if tenant_id is None:
+        raise ForbiddenError("this operation requires a tenant context")
+    return cast(UUID, tenant_id)
