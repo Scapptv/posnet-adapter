@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.9.5 (eventbus relay/consumer-i lifespan-da başlat + cross-tenant DB rolu = AI-1.14 follow-up) — AI-1.9 5 dilimə bölündü (aşağıda); AI-1.9-un son dilimi
-**Son commit:** `48203e1` — feat(core): AI-1.9.4 CORS + security headers + rate limit
-**Son uğurlu verify:** 2026-06-03; AI-1.9.4 TAM (CORS + security headers + slowapi rate limiter: 12 yeni test, **ümumi coverage 100%**, 157 test)
+**Cari task:** AI-1.13 (OTel + Prometheus + Grafana + Loki wiring; Tracing slot middleware sırasında) — **AI-1.9 TAM (5/5 dilim)**
+**Son commit:** `4f7d397` — feat(core): AI-1.9.5 eventbus relay/consumer in app lifespan
+**Son uğurlu verify:** 2026-06-03; AI-1.9.5 TAM (eventbus lifespan + cross-tenant workers: 6 yeni test, **ümumi coverage 100%**, 163 test)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -43,8 +43,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - Consumer handler-dən əvvəl `SET LOCAL app.current_tenant` (RLS scope)
   - Test infra: `tests/integration/conftest.py`-a async fixture-lər (async_engine/session_factory/migrated_db);
     Windows psycopg async üçün `event_loop_policy` selector-loop fix (root conftest)
-  - ⚠️ **AI-1.9/1.11 follow-up:** relay/consumer cross-tenant → DB rolu RLS bypass etməli (owner/BYPASSRLS);
-    queue bootstrap (`pgmq.ensure_queue`) app startup-da; EVENTBUS_* env → EventBusConfig wiring
+  - ✅ **follow-up həll (AI-1.9.5):** relay/consumer owner (RLS-exempt) sessionmaker üzərində = cross-tenant rol;
+    `pgmq.ensure_queue` app startup-da; PGMQ_*/EVENTBUS_* → EventBusConfig; graceful start/stop lifespan-da
 - [x] **AI-1.4** `libs/canonical_model` skeleton (v1) — 2026-06-02
   - frozen + strict (`extra=forbid`) Pydantic v2; `schema_version` ClassVar "v1" (ADR-0012 §17.1)
   - CanonicalProduct (listing snapshot) · Inventory (`available`=qty−reserved) · Price · Order (line+customer+totals)
@@ -63,7 +63,7 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - `JwksClient`: JWKS Redis cache (TTL), kid-miss → 1 refetch (rotation heal); fetch xətası propagate
   - `require_role` / `require_permission` (statik foundation RBAC map, super_admin bypass) → `ForbiddenError`(403)
   - audience verify konfiqurabel (default off, G7-də mapper+enable); 21 test (real Redis+respx+sintetik RSA); auth 100%
-- [ ] **AI-1.9 FastAPI app + middleware stack — 5 şaquli dilimə bölündü (hər biri TDD + atomik commit)**
+- [x] **AI-1.9 FastAPI app + middleware stack ✅ — 5/5 dilim TAM (hər biri TDD + atomik commit)** — 2026-06-03
   - **Middleware sırası (LOCKED):** RequestId → Logging → Tracing(1.13) → Auth → TenantContext(RLS) → RateLimit → ErrorHandler
   - [x] **AI-1.9.1** — App skeleton: `app/main.py` `create_app(settings)` factory · `lifespan` (engine+redis app.state, dispose/aclose) ·
     Settings genişləndi (app_name/version/environment/redis_url, `populate_by_name`) · `/healthz` (liveness) + `/readyz` (DB+Redis ping→503) ·
@@ -76,8 +76,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
     super_admin cross-tenant; naməlum/deaktiv subject→403 · **ADR-0015** (subject→DB lookup; JWT-claim/email redd) · **migration 0003** (`users.external_subject` qlobal unique) · *əhatə: **AI-1.11*** — 2026-06-03
   - [x] **AI-1.9.4** — CORS (CORSMiddleware, konfiqurabel) · SecurityHeaders middleware (pure ASGI: nosniff/DENY/no-referrer + konfiqurabel CSP/HSTS, route header-i clobber etmir) ·
     slowapi `SlowAPIASGIMiddleware` (async handler; BaseHTTP variantı async handler-i atır) → Redis storage (memory:// testdə), IP key, global limit, health exempt, `RateLimitExceeded`→RFC 7807 429 · *əhatə: **AI-1.12*** — 2026-06-03
-  - [ ] **AI-1.9.5 ← CARİ** — eventbus relay/consumer-i app `lifespan`-da başlat + `pgmq.ensure_queue`; **relay/consumer üçün cross-tenant DB rolu**
-    (BYPASSRLS/owner + pgmq schema grant) · *əhatə: **AI-1.14 follow-up*** — (1.9.1-dən ayrıldı: relay `posnet_app` RLS altında outbox-u görə bilməz)
+  - [x] **AI-1.9.5** — `EventBusWorkers`: outbox relay + consumer-i `lifespan`-da background task; **owner (RLS-exempt) sessionmaker = cross-tenant rol** (per-request yol `posnet_app`-ə keçir, ADR-0013) ·
+    startup `pgmq.ensure_queue` (queue+DLQ) · graceful stop (cancel+gather) · `EVENTBUS_ENABLED` gate · `create_app(event_handler=)` inject (foundation default = log handler; AI-2 dispatcher) · *əhatə: **AI-1.14 follow-up*** — 2026-06-03
 - [x] **AI-1.10** Global error handler (RFC 7807) ✅ — **AI-1.9.2-də** (2026-06-02)
 - [x] **AI-1.11** Tenant context (RLS injection) ✅ — **AI-1.9.3-də** (2026-06-03, ADR-0015)
 - [x] **AI-1.12** CORS + security headers + rate limiter ✅ — **AI-1.9.4-də** (2026-06-03)
@@ -102,8 +102,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Gate vəziyyəti
 - **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
-- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅;
-  qalan: AI-1.9.5 (eventbus-lifespan+relay cross-tenant rolu) · observability(1.13) · onboarding(1.15) · CRUD(1.16) · flags/i18n(1.17) · health/shutdown(1.18) · `v0.1.0-alpha` tag
+- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM**;
+  qalan: observability(1.13) · onboarding(1.15) · CRUD(1.16) · flags/i18n(1.17) · health/shutdown(1.18) · `v0.1.0-alpha` tag
 - G2 (POS Core): canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
 - **G-V (Validasiya):** retail satıcı demo (kill/continue)
