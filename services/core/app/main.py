@@ -2,13 +2,12 @@
 
 ``create_app`` builds the app from an explicit ``Settings`` (so tests can point
 it at testcontainers without touching global state). The lifespan owns the
-shared async resources — the SQLAlchemy engine and the Redis client — and
-exposes them on ``app.state`` for request handlers and dependencies.
+shared async resources — the SQLAlchemy engine, the Redis client and the
+eventbus workers — and exposes them on ``app.state`` for handlers/dependencies.
 
-Middleware stack (LOCKED order, filled in by the AI-1.9.* slices):
-RequestId -> Logging -> Tracing -> Auth -> TenantContext -> RateLimit -> ErrorHandler.
-The eventbus relay/consumer wiring (AI-1.9.5) waits on the relay's cross-tenant
-DB role (AI-1.14 follow-up) and is intentionally not started here.
+Middleware/request pipeline (LOCKED order): RequestId -> Logging -> Tracing(OTel)
+-> Auth -> TenantContext -> RateLimit -> ErrorHandler. Auth/TenantContext are
+dependencies; Tracing is the OTel FastAPI instrumentation (AI-1.13, opt-in).
 """
 
 from __future__ import annotations
@@ -18,11 +17,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry.sdk.trace.export import SpanExporter
 from redis.asyncio import Redis
 from slowapi.middleware import SlowAPIASGIMiddleware
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from libs.eventbus import EventHandler
+from libs.observability import instrument_sqlalchemy, setup_telemetry
 
 from .api.health import router as health_router
 from .config import Settings, get_settings
@@ -34,6 +35,7 @@ from .middleware.request_id import RequestIdMiddleware
 from .middleware.security import SecurityHeadersMiddleware
 from .rate_limit import build_limiter, exempt_routes
 from .security import build_token_verifier
+from .telemetry import build_telemetry_config
 
 
 @asynccontextmanager
@@ -51,6 +53,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.redis = redis
     # JWT verifier shares the app Redis for JWKS caching (AI-1.9.3).
     app.state.token_verifier = build_token_verifier(settings, redis)
+
+    # DB span instrumentation needs the live engine (AI-1.13).
+    if settings.otel_enabled and app.state.tracer_provider is not None:
+        instrument_sqlalchemy(engine, app.state.tracer_provider)
 
     # EventBus relay + consumer on the owner (RLS-exempt) session factory — the
     # cross-tenant role they need to drain every tenant's outbox (AI-1.9.5).
@@ -73,7 +79,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app(
-    settings: Settings | None = None, *, event_handler: EventHandler | None = None
+    settings: Settings | None = None,
+    *,
+    event_handler: EventHandler | None = None,
+    span_exporter: SpanExporter | None = None,
 ) -> FastAPI:
     settings = settings or get_settings()
     configure_logging(json_logs=settings.environment != "local")
@@ -82,6 +91,7 @@ def create_app(
     app.state.settings = settings
     # Consumed by the lifespan; foundation default just logs (AI-2 injects a dispatcher).
     app.state.event_handler = event_handler or log_event_handler
+    app.state.tracer_provider = None  # set by setup_telemetry below (if enabled)
 
     register_exception_handlers(app)
 
@@ -110,4 +120,12 @@ def create_app(
     app.add_middleware(RequestIdMiddleware)
 
     app.include_router(health_router)
+
+    # OTel tracing + Prometheus /metrics (AI-1.13). Last, so the FastAPI span wraps
+    # the whole middleware stack; the SQLAlchemy engine is instrumented in lifespan.
+    if settings.otel_enabled:
+        app.state.tracer_provider = setup_telemetry(
+            app, build_telemetry_config(settings), span_exporter=span_exporter
+        )
+
     return app

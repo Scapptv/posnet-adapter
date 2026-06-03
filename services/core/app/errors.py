@@ -18,6 +18,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
 from libs.common import DomainError, RateLimitError
+from libs.observability import current_trace_id
 
 from .logging_config import get_logger
 from .middleware.request_id import get_request_id
@@ -30,6 +31,9 @@ def _problem(status: int, body: dict[str, Any], request: Request) -> JSONRespons
     request_id = get_request_id(request)
     if request_id is not None:
         body.setdefault("request_id", request_id)
+    trace_id = current_trace_id()
+    if trace_id is not None:
+        body.setdefault("trace_id", trace_id)
     return JSONResponse(status_code=status, content=body, media_type=_PROBLEM_JSON)
 
 

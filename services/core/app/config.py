@@ -79,6 +79,16 @@ class Settings(BaseSettings):
     pgmq_visibility_timeout: int = Field(default=30, alias="PGMQ_VISIBILITY_TIMEOUT")
     pgmq_max_retry: int = Field(default=5, alias="PGMQ_MAX_RETRY")
 
+    # ---- Observability / OTel (AI-1.13) ----
+    # Off by default: instrumentation is process-global, so it is enabled
+    # explicitly (.env) in deployed/dev runs and in the telemetry tests.
+    otel_enabled: bool = Field(default=False, alias="OTEL_ENABLED")
+    otel_service_name: str = Field(default="posnet-core", alias="OTEL_SERVICE_NAME")
+    otel_exporter_otlp_endpoint: str = Field(
+        default="http://localhost:4317", alias="OTEL_EXPORTER_OTLP_ENDPOINT"
+    )
+    otel_traces_sampler_ratio: float = Field(default=1.0, alias="OTEL_TRACES_SAMPLER_ARG")
+
 
 @lru_cache
 def get_settings() -> Settings:

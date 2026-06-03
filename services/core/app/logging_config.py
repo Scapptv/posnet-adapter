@@ -13,6 +13,8 @@ from typing import Any
 import structlog
 from structlog.types import EventDict, WrappedLogger
 
+from libs.observability import add_trace_context
+
 from .middleware.request_id import request_id_ctx
 
 
@@ -27,6 +29,7 @@ def configure_logging(*, json_logs: bool = True, level: int = logging.INFO) -> N
     processors: list[structlog.types.Processor] = [
         structlog.processors.add_log_level,
         add_request_id,
+        add_trace_context,  # trace_id/span_id when a span is active (AI-1.13)
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
     ]
