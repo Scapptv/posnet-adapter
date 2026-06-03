@@ -1,29 +1,46 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18)
-**Cari task:** AI-2.5-POS (Sale/çek — yarat → stok düş, atomik + X/Z report)
+**Cari task:** **AI-2.H1** (Security posture — RLS FORCE + non-owner rol + realm parol sil + audience) — bax Faza AI-2.H
 **Son commit:** `85977be` — feat(core): AI-2.4 shift/vardiya + cash management
-**Son uğurlu verify:** 2026-06-03; AI-2.4 TAM (shift aç/bağla + cash movements + cash summary, tək açıq vardiya partial-unique: 20 yeni test, **ümumi coverage 100%**, 351 test)
-**Vəziyyət:** AI-2 IN_PROGRESS (AI-2.1 ✅). GitHub: `Scapptv/posnet-adapter` (public) push olundu. **CI bloklu** — hesab "failed payment" (billing-də həll olunmalı; kod problemi yox, lokal yaşıl). `v0.1.0-alpha` tag CI yaşılından sonra.
+**Son uğurlu verify:** 2026-06-03; AI-2.4 TAM (351 test, coverage 100% lokal)
+**Vəziyyət:** AI-2 IN_PROGRESS (2.1–2.4 ✅). **$100M audit aparıldı** (6 agent) → **Faza AI-2.H (hardening) AI-2.5-dən ƏVVƏL** (ADR-0016). GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (hesab billing), push pauza (lokal-only).
 
 ---
 
-## 🎯 STRATEGİYA (ADR-0012 — POS-anchored İnteqrasiya Hub)
+## 🎯 STRATEGİYA (ADR-0012 + ADR-0016 — Posnetin İnteqrasiya Nüvəsi)
 
-**Məhsul:** POS-anchored omnichannel **inteqrasiya hub** (TSoft/Entegra/ChannelEngine modeli).
-POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/booking-ə çıxarır.
-
+**Məhsul:** **Posnetin inteqrasiya nüvəsi** — necə ki **CLOPOS** = **Wolt/Bolt** (delivery) inteqratoru,
+**TSoft** = **Trendyol** (marketplace) inteqratorudur, Posnet eyni nüvə ilə delivery + marketplace +
+booking kanallarına bağlanır. Bu servis = satıcının **online/inteqrasiya qatı** (mövcud Posnet ERP
+məhsul/stok/qiymətin sahibidir; bu, online-a çıxan curated alt-çoxluq + online qiymət/kampaniya + online
+sifariş emalı + online çek).
+- **Outbound:** məhsul/stok/qiymət/endirim → (canonical) → kanallar (Trendyol/Birmarket/Wolt/Bolt) **push**
+- **Inbound:** sifariş/ödəniş/kargo → (canonical) → **Posnet** yaz
 - **Beachhead:** **Azərbaycan · pərakəndə · ilk kanal = Birmarket/Trendyol (marketplace)**
-- **İlk MVP dilimi:** POS-da məhsul → Birmarket-ə listing → stok/qiymət sync → sifariş POS-a → stok hər yerdə azalır
 - **Crown jewel:** adapter SDK + canonical model + sync engine (idempotency + reconciliation 1-ci gündən)
-- **Paralel insan trekləri:** (1) retail satıcı müsahibələri · (2) **Birmarket/Trendyol seller API access** (D-002)
 
-> 🔄 Aktiv yol: AI-0 ✅ → **AI-1 (Foundation)** → AI-2 (POS Core) → AI-2.5 (Adapter framework, MVP) → G-V.
-> Detal: `docs/adr/0012-integration-hub-reframe.md`.
+> 🔄 Aktiv yol: AI-0 ✅ → AI-1 (Foundation) ✅ → AI-2.1–2.4 (POS/online qat) ✅ → **AI-2.H (Audit hardening) ◀ CARİ** → AI-2.5 (Adapter framework + 1 kanal) → G-V.
+> Detal: `docs/adr/0012-integration-hub-reframe.md`, **`docs/adr/0016-audit-hardening-before-adapters.md`**.
 
 ---
 
-## Faza AI-2 — POS CORE (retail beachhead; CARİ)
+## Faza AI-2.H — AUDIT HARDENING (icra ardıcıllığı; **CARİ** — AI-2.5-dən əvvəl)
+
+**Mənbə:** $100M audit (6 agent, 2026-06-03) — ADR-0016. Düzgün məntiqi sıra: təhlükəsizlik → data
+identity/invariant → korrektlik/proof → sync enabler → sonra adapterlər. **Kritiklər indi ucuz,
+kanallardan sonra baha.** Hər task: TDD + lokal `make verify`/pytest 100% + commit (push yox).
+
+- [ ] **AI-2.H1 🔴 Security posture** — RLS `FORCE` bütün cədvəllərə + app **non-owner login** rolu (owner/superuser yox) + role-suz sorğu 0 sətir qaytarması regression testi; `realm-posnet.json` hardcoded parolu sil/dəyiş + secret baseline; JWT audience enforce (non-local) + `require [exp,iat,sub]` + boş `sub` rədd *(audit A1, A6, A7)*
+- [ ] **AI-2.H2 🔴 Data identity & invariant** — `UNIQUE(tenant_id, sku)` + `UNIQUE(tenant_id, barcode) WHERE barcode IS NOT NULL` + `find_variant_*` deterministik `ORDER BY`; inventory first-create `IntegrityError → 409`; DB `CHECK(qty>=0, reserved_qty>=0, reserved_qty<=qty)`; journal cədvəlləri (stock_movements/cash_movements/audit_logs) INSERT/SELECT-only grant *(audit A2, A3, A4, schema)*
+- [ ] **AI-2.H3 🔴 Anti-oversell proof** — real paralel-tx oversell testi (asyncio.gather, son vahid); coverage-theater testləri (fake-session, `session=None`) real et və ya işarələ; `_effect`/Money üçün hypothesis property-test; `make verify`-ə `test` əlavə *(audit A4, A5)*
+- [ ] **AI-2.H4 🔴 Sync change-feed** — catalog/inventory/pricing domain mutasiyaları **outbox event** emit (onboarding template) + consume **idempotency** (`idempotency_keys` wiring, event_id dedup) *(audit B1, B5)*
+- [ ] **AI-2.H5 🟡 Sync model enabler** — store↔warehouse / **online-sellable-stock** modeli + **online-published** flag + **channel schema** dizaynı (`channels`, `channel_listings`: sku↔external_listing_id, category/attribute map) + **canonical mapper** (Product/Inventory/Price → CanonicalProduct, aggregation ADR) *(audit B2, B3, B4, B6)*
+
+**Hardening sonrası → AI-2.5** adapter framework + 1 kanal (mock-marketplace → real) təmizlənmiş təməl üstündə.
+**FTS gin tenant-aware** + per-tenant/per-kanal rate-limit + eventbus health (DLQ/queue depth) + trace propagation = AI-2.5 ərzində.
+
+## Faza AI-2 — POS CORE / online qat (2.1–2.4 ✅; sale = AI-2.5-ə köçdü)
 
 **Məqsəd:** Catalog + inventory + pricing + shift + sale = **canonical tək həqiqət mənbəyi** (hub-a hazır).
 
