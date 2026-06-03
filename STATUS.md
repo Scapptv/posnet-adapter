@@ -1,10 +1,10 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18)
-**Cari task:** **AI-2.H1** (Security posture — RLS FORCE + non-owner rol + realm parol sil + audience) — bax Faza AI-2.H
-**Son commit:** `85977be` — feat(core): AI-2.4 shift/vardiya + cash management
-**Son uğurlu verify:** 2026-06-03; AI-2.4 TAM (351 test, coverage 100% lokal)
-**Vəziyyət:** AI-2 IN_PROGRESS (2.1–2.4 ✅). **$100M audit aparıldı** (6 agent) → **Faza AI-2.H (hardening) AI-2.5-dən ƏVVƏL** (ADR-0016). GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (hesab billing), push pauza (lokal-only).
+**Cari task:** **AI-2.H2** (Data identity & invariant — UNIQUE(tenant_id, sku/barcode) + deterministik lookup + IntegrityError→409 + DB CHECK + journal grant) — bax Faza AI-2.H
+**Son commit:** `2463f96` — refactor(core): dual-engine OTel dedupe (AI-2.H1 tam)
+**Son uğurlu verify:** 2026-06-03; AI-2.H1 TAM (365 test, coverage 100% lokal)
+**Vəziyyət:** AI-2 IN_PROGRESS (2.1–2.4 ✅; **AI-2.H1 ✅ təhlükəsizlik duruşu**). **$100M audit** (6 agent) → **Faza AI-2.H (hardening) AI-2.5-dən ƏVVƏL** (ADR-0016); növbəti AI-2.H2. GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (hesab billing), push pauza (lokal-only).
 
 ---
 
@@ -31,11 +31,13 @@ sifariş emalı + online çek).
 identity/invariant → korrektlik/proof → sync enabler → sonra adapterlər. **Kritiklər indi ucuz,
 kanallardan sonra baha.** Hər task: TDD + lokal `make verify`/pytest 100% + commit (push yox).
 
-- [ ] **AI-2.H1 🔴 Security posture** — RLS `FORCE` bütün cədvəllərə + app **non-owner login** rolu (owner/superuser yox) + role-suz sorğu 0 sətir qaytarması regression testi; `realm-posnet.json` hardcoded parolu sil/dəyiş + secret baseline; JWT audience enforce (non-local) + `require [exp,iat,sub]` + boş `sub` rədd *(audit A1, A6, A7)*
+- [x] **AI-2.H1 🔴 Security posture** ✅ — 2026-06-03 (ADR-0017). RLS `FORCE` bütün policy cədvəllərinə (dinamik DO-loop) + `posnet_app` **non-owner LOGIN** rolu (NOSUPERUSER NOBYPASSRLS); **dual-pool**: app pool (`DATABASE_APP_URL`→posnet_app, per-request) + system pool (`DATABASE_URL`→superuser: migration/super_admin/relay/consumer/onboarding). Role-suz/tenant-siz sorğu **0 sətir** regression. `posnet_resolve_tenant` SECURITY DEFINER (sabit search_path, PUBLIC-dən REVOKE) — kilidli pool üçün tək cross-tenant subject→tenant. `realm-posnet.json` parolu → `${env.POSNET_OWNER_PASSWORD}` (compose dev default, A6). JWT `require_exp/iat/sub` + boş/whitespace sub rədd + audience enforce local/test xaricində (A7). migration **0009**; 14 yeni test → suite **365 @ 100%**. *(audit A1, A6, A7)*
 - [ ] **AI-2.H2 🔴 Data identity & invariant** — `UNIQUE(tenant_id, sku)` + `UNIQUE(tenant_id, barcode) WHERE barcode IS NOT NULL` + `find_variant_*` deterministik `ORDER BY`; inventory first-create `IntegrityError → 409`; DB `CHECK(qty>=0, reserved_qty>=0, reserved_qty<=qty)`; journal cədvəlləri (stock_movements/cash_movements/audit_logs) INSERT/SELECT-only grant *(audit A2, A3, A4, schema)*
 - [ ] **AI-2.H3 🔴 Anti-oversell proof** — real paralel-tx oversell testi (asyncio.gather, son vahid); coverage-theater testləri (fake-session, `session=None`) real et və ya işarələ; `_effect`/Money üçün hypothesis property-test; `make verify`-ə `test` əlavə *(audit A4, A5)*
 - [ ] **AI-2.H4 🔴 Sync change-feed** — catalog/inventory/pricing domain mutasiyaları **outbox event** emit (onboarding template) + consume **idempotency** (`idempotency_keys` wiring, event_id dedup) *(audit B1, B5)*
 - [ ] **AI-2.H5 🟡 Sync model enabler** — store↔warehouse / **online-sellable-stock** modeli + **online-published** flag + **channel schema** dizaynı (`channels`, `channel_listings`: sku↔external_listing_id, category/attribute map) + **canonical mapper** (Product/Inventory/Price → CanonicalProduct, aggregation ADR) *(audit B2, B3, B4, B6)*
+
+> ⚠️ **AI-2.H1 canlı yoxlama (paralel, operator):** (a) Keycloak `${env.POSNET_OWNER_PASSWORD}` substitusiyası import-da — avtomatik realm testi strukturaldır, OIDC round-trip canlı təsdiq istəyir; (b) dev app `DATABASE_APP_URL` (posnet_app pool) ilə `docker compose up` + smoke. Boş `DATABASE_APP_URL` system pool-a düşür (işləyir, amma kilidli deyil).
 
 **Hardening sonrası → AI-2.5** adapter framework + 1 kanal (mock-marketplace → real) təmizlənmiş təməl üstündə.
 **FTS gin tenant-aware** + per-tenant/per-kanal rate-limit + eventbus health (DLQ/queue depth) + trace propagation = AI-2.5 ərzində.
