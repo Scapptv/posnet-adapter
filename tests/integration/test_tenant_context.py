@@ -106,6 +106,7 @@ def _build_app(pg_url: str, redis_url: str) -> FastAPI:
             redis_url=redis_url,
             keycloak_url=_KC_URL,
             keycloak_realm="posnet",
+            rate_limit_storage_uri="memory://",  # isolated per-app counter
         )
     )
 

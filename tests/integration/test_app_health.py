@@ -10,7 +10,13 @@ from services.core.app.main import create_app
 
 
 def _app(database_url: str, redis_url: str) -> object:
-    return create_app(Settings(database_url=database_url, redis_url=redis_url))
+    return create_app(
+        Settings(
+            database_url=database_url,
+            redis_url=redis_url,
+            rate_limit_storage_uri="memory://",  # isolated per-app counter
+        )
+    )
 
 
 @pytest.mark.integration

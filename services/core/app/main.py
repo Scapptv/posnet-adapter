@@ -17,7 +17,9 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from redis.asyncio import Redis
+from slowapi.middleware import SlowAPIASGIMiddleware
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from .api.health import router as health_router
@@ -26,6 +28,8 @@ from .errors import register_exception_handlers
 from .logging_config import configure_logging
 from .middleware.logging import LoggingMiddleware
 from .middleware.request_id import RequestIdMiddleware
+from .middleware.security import SecurityHeadersMiddleware
+from .rate_limit import build_limiter, exempt_routes
 from .security import build_token_verifier
 
 
@@ -59,8 +63,28 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
 
     register_exception_handlers(app)
-    # add_middleware prepends, so the last added is outermost: RequestId wraps
-    # Logging wraps the app — request_id is set before the access log runs.
+
+    # Rate limiter lives on app.state; health probes are exempt (infra polls them).
+    limiter = build_limiter(settings)
+    app.state.limiter = limiter
+    exempt_routes(limiter, health_router.routes)
+
+    # add_middleware prepends, so the last added is outermost. Target order
+    # (outer -> inner): RequestId -> Logging -> CORS -> SecurityHeaders -> RateLimit -> app.
+    # RequestId stays outermost so even a 429/CORS response carries a request id.
+    app.add_middleware(SlowAPIASGIMiddleware)
+    if settings.security_headers_enabled:
+        app.add_middleware(
+            SecurityHeadersMiddleware, csp=settings.security_csp, hsts=settings.security_hsts
+        )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()],
+        allow_credentials=settings.cors_allow_credentials,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        max_age=settings.cors_max_age,
+    )
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(RequestIdMiddleware)
 

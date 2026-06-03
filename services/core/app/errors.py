@@ -13,10 +13,11 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
+from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
-from libs.common import DomainError
+from libs.common import DomainError, RateLimitError
 
 from .logging_config import get_logger
 from .middleware.request_id import get_request_id
@@ -57,6 +58,12 @@ async def _http_error(request: Request, exc: StarletteHTTPException) -> JSONResp
     return _problem(exc.status_code, body, request)
 
 
+async def _rate_limit_error(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    # slowapi raises this from its middleware; render it as RFC 7807 like the rest.
+    error = RateLimitError(f"rate limit exceeded: {exc.detail}")
+    return _problem(error.status, error.to_problem(), request)
+
+
 async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
     _logger.error("unhandled_exception", exc_info=exc)
     body: dict[str, Any] = {
@@ -71,5 +78,8 @@ async def _unhandled_error(request: Request, exc: Exception) -> JSONResponse:
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(DomainError, _domain_error)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, _validation_error)  # type: ignore[arg-type]
+    # RateLimitExceeded subclasses HTTPException; register it explicitly so slowapi
+    # uses this problem+json handler instead of its plain-text default.
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_error)  # type: ignore[arg-type]
     app.add_exception_handler(StarletteHTTPException, _http_error)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, _unhandled_error)

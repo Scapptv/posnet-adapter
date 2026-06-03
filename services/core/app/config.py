@@ -45,6 +45,28 @@ class Settings(BaseSettings):
     keycloak_audiences: str = Field(default="", alias="KEYCLOAK_AUDIENCES")
     jwks_cache_ttl_seconds: int = Field(default=3600, alias="JWKS_CACHE_TTL_SECONDS")
 
+    # ---- CORS (AI-1.9.4) ----
+    # Comma-separated allowed origins; empty = no cross-origin access.
+    cors_allow_origins: str = Field(default="", alias="CORS_ALLOW_ORIGINS")
+    cors_allow_credentials: bool = Field(default=True, alias="CORS_ALLOW_CREDENTIALS")
+    cors_max_age: int = Field(default=600, alias="CORS_MAX_AGE")
+
+    # ---- Security headers (AI-1.9.4) ----
+    security_headers_enabled: bool = Field(default=True, alias="SECURITY_HEADERS_ENABLED")
+    # Empty value omits the header. Strict API CSP by default (the interactive
+    # Swagger UI at /docs will not render under it; /openapi.json is unaffected).
+    security_csp: str = Field(
+        default="default-src 'none'; frame-ancestors 'none'; base-uri 'none'",
+        alias="SECURITY_CSP",
+    )
+    security_hsts: str = Field(default="max-age=63072000; includeSubDomains", alias="SECURITY_HSTS")
+
+    # ---- Rate limiter (AI-1.9.4) ----
+    rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    rate_limit_default: str = Field(default="100/minute", alias="RATE_LIMIT_PER_TENANT")
+    # limits/slowapi storage URI; empty -> fall back to ``redis_url``.
+    rate_limit_storage_uri: str = Field(default="", alias="RATE_LIMIT_STORAGE_URI")
+
 
 @lru_cache
 def get_settings() -> Settings:
