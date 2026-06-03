@@ -1,10 +1,10 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.18 (Health probes + graceful shutdown + DB pool + backup)
-**Son commit:** `96061aa` — feat(core): AI-1.17 feature flags + i18n backend
-**Son uğurlu verify:** 2026-06-03; AI-1.17 TAM (feature flags + i18n backend: 56 yeni test, **ümumi coverage 100%**, 262 test)
-**Vəziyyət:** AI-1 IN_PROGRESS
+**Cari task:** AI-1 TAM (18/18 task) → **G1 gate — insan təsdiqi gözlənilir** (+ `v0.1.0-alpha` tag)
+**Son commit:** `a8b5402` — feat(core): AI-1.18 health/shutdown + DB pool + backup
+**Son uğurlu verify:** 2026-06-03; AI-1.18 TAM (health/shutdown drain + pool_pre_ping + DB backup: 7 yeni test, **ümumi coverage 100%**, 269 test)
+**Vəziyyət:** AI-1 COMPLETE — **G1 BLOCKED: insan gate təsdiqi** (bax HUMAN-GATES.md G1)
 
 ---
 
@@ -91,7 +91,10 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - core: az(default)/en/tr/ru kataloqları · `get_locale` dep (`?locale=` override → header → default) · translator app.state-də · `GET /v1/i18n/messages` **auth-suz** (login ekranı üçün) negotiated kataloqu qaytarır
   - `libs/feature_flags`: `FlagRegistry` (default-lar + `resolve(overrides)`; naməlum açar iqnor) · `UnknownFlagError` write-validasiyası; REGISTRY: marketplace_sync/online_storefront/delivery_integration (off) + multi_store (on)
   - migration **0004** `feature_flags` (tenant_id,key,enabled, unique) + RLS policy + **posnet_app GRANT** (0002 blanket grant yalnız mövcud cədvəlləri tuturdu); `GET /v1/feature-flags` (tenant üzvü) · `PUT /v1/feature-flags/{key}` (tenant_admin, naməlum→404); upsert + RLS izolyasiya
-- [ ] AI-1.18 Health probes + graceful shutdown + DB pool + backup
+- [x] **AI-1.18** Health probes + graceful shutdown + DB pool + backup ✅ — 2026-06-03
+  - health: `/healthz`+`/readyz` (1.9.1-də) + **readiness drain** — `app.state.ready` lifespan startup-da True, shutdown başında False; `/readyz` lifecycle gate → starting/draining-də 503 `unavailable` (dep yoxlamasından əvvəl)
+  - DB pool: `DATABASE_POOL_PRE_PING` (default true) → `create_async_engine(pool_pre_ping=...)` (stale bağlantı recycle)
+  - backup: `services/core/app/backup.py` (pure helpers: `pg_dump_command` DSN→argv+env/PGPASSWORD, `backup_filename` UTC, `select_expired` retention) + `scripts/db_backup.py` (`make backup`: pg_dump→BACKUP_DIR, opsional S3/MinIO upload, retention prune)
 
 **G1 acceptance:** RLS izolasiya · OIDC round-trip · migration up/down/up · pgmq publish→consume→DLQ · coverage ≥80% · OTel trace · tag v0.1.0-alpha.
 
@@ -107,8 +110,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Gate vəziyyəti
 - **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
-- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM** · OTel trace + Prometheus metrics ✅ · tenant onboarding API + seed ✅ · user/role CRUD (tenant RLS) ✅ · feature flags + i18n backend ✅;
-  qalan: health/shutdown(1.18) · `v0.1.0-alpha` tag
+- **G1 (Foundation): 🟡 TƏSDİQ GÖZLƏYİR** (18/18 task TAM) — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM** · OTel trace + Prometheus metrics ✅ · tenant onboarding API + seed ✅ · user/role CRUD (tenant RLS) ✅ · feature flags + i18n backend ✅ · health/shutdown drain + pool + backup ✅;
+  **qalan (insan):** GitHub repo → CI yaşıl · G1 təsdiqi · `v0.1.0-alpha` tag (təsdiqdən sonra). Bax HUMAN-GATES.md → G1.
 - G2 (POS Core): canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
 - **G-V (Validasiya):** retail satıcı demo (kill/continue)

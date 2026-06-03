@@ -11,7 +11,7 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 | Gate | Faza | Status | İcazə tarixi | İcazə verən |
 |---|---|---|---|---|
 | G0 — Bootstrap done | AI-0 | ✅ **APPROVED** | 2026-06-01 | Huseyn |
-| G1 — Foundation done | AI-1 | ⏳ Planlandı | — | — |
+| G1 — Foundation done | AI-1 | 🟡 **TƏSDİQ GÖZLƏYİR** | — | — |
 | G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
 | **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ Planlandı | — | — |
 | G3 — Order Mgmt done | AI-3 | ❄️ Dondurulub | — | — |
@@ -88,6 +88,33 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 ---
 
 ## Gate Keçidləri (xronoloji jurnal)
+
+### G1 — Foundation done (TƏSDİQ GÖZLƏYİR)
+**Faza:** AI-1 (18/18 task TAM)
+**Tarix:** 2026-06-03
+**Son commit:** `a8b5402` — feat(core): AI-1.18 health/shutdown + DB pool + backup
+**Yoxlama nəticələri (AI lokal — testcontainers + dev stack):**
+- [x] `make verify` (ruff lint+format · mypy --strict · bandit · pip-audit · detect-secrets) keçir
+- [x] pytest **269 test, ümumi coverage 100%** (gate ≥80%)
+- [x] RLS cross-tenant izolasiya (tenants/users/roles/permissions/user_roles/feature_flags) — select-izolasiya + insert-reject (WITH CHECK)
+- [x] OIDC round-trip — Keycloak `posnet` realm + JWKS RS256 verify → Principal (real token testi)
+- [x] migration up/down/up (0001–0004) testcontainers-də
+- [x] pgmq publish→consume→DLQ (transactional outbox + relay FOR UPDATE SKIP LOCKED + retry/backoff)
+- [x] OpenAPI + RFC 7807 problem+json (DomainError→problem · 422/429/500 leak-siz)
+- [x] OTel trace (FastAPI + SQLAlchemy span → OTLP) + Prometheus `/metrics` + trace_id korelyasiya
+- [x] Vault `get_secret()` (KV-v2 ref) + testcontainers
+- [x] rate limit 101→429 (slowapi + Redis; health exempt)
+- [x] health `/healthz`+`/readyz` (DB+Redis) + readiness drain · graceful shutdown · DB pool `pre_ping` · backup (`make backup`)
+- [ ] **CI yaşıl (GitHub Actions)** — ⏳ workflows hazır; insan GitHub repo + remote qurub push etməlidir
+- [ ] **`v0.1.0-alpha` tag** — AI hazırdır; G1 təsdiqindən sonra yaradılır
+
+**İnsandan tələb olunan (G1 keçidi üçün):**
+1. GitHub repo + remote qur, push et → CI workflow-larının yaşıl olduğunu təsdiqlə (`CODEOWNERS @OWNER` doldur).
+2. G1-i **APPROVE** et (yuxarıdakı lokal yoxlamalar + CI yaşıl).
+3. `v0.1.0-alpha` tag yaradılmasına icazə ver (AI tag-ı çəkə bilər, və ya insan).
+
+**Status:** 🟡 TƏSDİQ GÖZLƏYİR
+**İmza:** (insan dolduracaq)
 
 ### G0 — Bootstrap done (TƏSDİQ GÖZLƏYİR)
 **Faza:** AI-0 (10/11 task; AI-0.7 Flutter təxirə salındı — gec OK)
