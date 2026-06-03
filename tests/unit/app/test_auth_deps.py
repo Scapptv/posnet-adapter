@@ -232,7 +232,15 @@ class _FakeSession:
 
 
 def _request_for(session: _FakeSession) -> Request:
-    app = SimpleNamespace(state=SimpleNamespace(sessionmaker=lambda: session, settings=Settings()))
+    # Both pools resolve to the same fake session; the app pool serves regular
+    # callers and the system pool serves super_admin (ADR-0017).
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            sessionmaker=lambda: session,
+            system_sessionmaker=lambda: session,
+            settings=Settings(),
+        )
+    )
     return Request({"type": "http", "app": app, "state": {}})
 
 

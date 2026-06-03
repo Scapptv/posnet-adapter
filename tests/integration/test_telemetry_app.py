@@ -8,6 +8,8 @@ tests.
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit, urlunsplit
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -25,10 +27,18 @@ async def test_app_telemetry_traces_http_and_db(
     migrated_db: None, pg_sqlalchemy_url: str, redis_url: str
 ) -> None:
     exporter = InMemorySpanExporter()
+    # Split app pool (posnet_app) — the realistic deployment shape; both engines
+    # get DB-span instrumentation (ADR-0017). The DB ping below runs on it.
+    app_creds = "posnet_app:posnet_app_dev_pw"  # pragma: allowlist secret
+    parts = urlsplit(pg_sqlalchemy_url)
+    app_pool_url = urlunsplit(
+        (parts.scheme, f"{app_creds}@{parts.hostname}:{parts.port}", parts.path, "", "")
+    )
     app = create_app(
         Settings(
             environment="local",
             database_url=pg_sqlalchemy_url,
+            database_app_url=app_pool_url,
             redis_url=redis_url,
             otel_enabled=True,
             eventbus_enabled=False,
