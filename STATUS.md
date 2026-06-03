@@ -1,10 +1,10 @@
 # STATUS — Posnet
 
-**Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1 TAM (18/18 task) → **G1 gate — insan təsdiqi gözlənilir** (+ `v0.1.0-alpha` tag)
+**Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Huseyn); AI-1 Foundation TAM (18/18)
+**Cari task:** AI-2.1 (Catalog domain + CRUD API — product/variant/barkod axtarış)
 **Son commit:** `a8b5402` — feat(core): AI-1.18 health/shutdown + DB pool + backup
 **Son uğurlu verify:** 2026-06-03; AI-1.18 TAM (health/shutdown drain + pool_pre_ping + DB backup: 7 yeni test, **ümumi coverage 100%**, 269 test)
-**Vəziyyət:** AI-1 COMPLETE — **G1 BLOCKED: insan gate təsdiqi** (bax HUMAN-GATES.md G1)
+**Vəziyyət:** G1 ✅ ŞƏRTİ TƏSDİQ (kod ✓ lokal) — AI-2 başlayır. **Paralel (insan):** GitHub repo → CI yaşıl → sonra `v0.1.0-alpha` tag
 
 ---
 
@@ -110,8 +110,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Gate vəziyyəti
 - **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
-- **G1 (Foundation): 🟡 TƏSDİQ GÖZLƏYİR** (18/18 task TAM) — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM** · OTel trace + Prometheus metrics ✅ · tenant onboarding API + seed ✅ · user/role CRUD (tenant RLS) ✅ · feature flags + i18n backend ✅ · health/shutdown drain + pool + backup ✅;
-  **qalan (insan):** GitHub repo → CI yaşıl · G1 təsdiqi · `v0.1.0-alpha` tag (təsdiqdən sonra). Bax HUMAN-GATES.md → G1.
+- **G1 (Foundation): ✅ APPROVED (şərti)** (2026-06-03, Huseyn; 18/18 task TAM) — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM** · OTel trace + Prometheus metrics ✅ · tenant onboarding API + seed ✅ · user/role CRUD (tenant RLS) ✅ · feature flags + i18n backend ✅ · health/shutdown drain + pool + backup ✅;
+  **şərt + paralel (insan):** GitHub repo → CI yaşıl → sonra `v0.1.0-alpha` tag (AI çəkə bilər). Bax HUMAN-GATES.md → G1.
 - G2 (POS Core): canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
 - **G-V (Validasiya):** retail satıcı demo (kill/continue)

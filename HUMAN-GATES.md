@@ -11,7 +11,7 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 | Gate | Faza | Status | İcazə tarixi | İcazə verən |
 |---|---|---|---|---|
 | G0 — Bootstrap done | AI-0 | ✅ **APPROVED** | 2026-06-01 | Huseyn |
-| G1 — Foundation done | AI-1 | 🟡 **TƏSDİQ GÖZLƏYİR** | — | — |
+| G1 — Foundation done | AI-1 | ✅ **APPROVED (şərti)** | 2026-06-03 | Huseyn |
 | G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
 | **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ Planlandı | — | — |
 | G3 — Order Mgmt done | AI-3 | ❄️ Dondurulub | — | — |
@@ -113,8 +113,15 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 2. G1-i **APPROVE** et (yuxarıdakı lokal yoxlamalar + CI yaşıl).
 3. `v0.1.0-alpha` tag yaradılmasına icazə ver (AI tag-ı çəkə bilər, və ya insan).
 
-**Status:** 🟡 TƏSDİQ GÖZLƏYİR
-**İmza:** (insan dolduracaq)
+**Operator qərarı (2026-06-03 — Huseyn): ŞƏRTİ APPROVE.**
+Əsaslandırma: (a) **G0 presedenti** — GitHub Actions yaşılı G0-da da açıq qaldı, paralel insan
+işi kimi; eyni məntiq G1-ə. (b) **Validasiya-sürəti prioriteti** (ADR-0011/0012) — əsl hədəf
+G-V; AI-2 (POS Core) ora gedən kritik yoldur, onu infrastruktur elementi üçün bloklamaq səhvdir.
+Kod tərəfi tam + lokal yaşıl (269 test, 100%) olduğu üçün G1 **kod baxımından keçir**.
+**Şərt:** `v0.1.0-alpha` tag yalnız **CI real runner-də yaşıl olandan SONRA** çəkilir (release
+artefaktı təsdiqlənməmiş vəziyyətdən çəkilməsin). GitHub CI = paralel insan işi; AI-2 açıqdır.
+**Status:** ✅ APPROVED (şərti — kod ✓ lokal; CI yaşıl + `v0.1.0-alpha` tag paralel follow-up)
+**İmza:** Huseyn (operator), 2026-06-03
 
 ### G0 — Bootstrap done (TƏSDİQ GÖZLƏYİR)
 **Faza:** AI-0 (10/11 task; AI-0.7 Flutter təxirə salındı — gec OK)
