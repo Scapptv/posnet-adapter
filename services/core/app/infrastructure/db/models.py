@@ -287,3 +287,29 @@ class StockMovement(Base, UUIDPrimaryKeyMixin):
     moved_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), server_default=func.now(), nullable=False, index=True
     )
+
+
+# ----------------------------------------------------------------------------
+# Pricing domain (AI-2.3) — the effective sell price is the variant's
+# ``base_price_minor`` unless a (store/time-scoped) override applies. The full
+# rule engine (percent/tiered) lands later; this is the "optional rule" overlay.
+# ----------------------------------------------------------------------------
+
+
+class PriceOverride(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "price_overrides"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("variants.id"), nullable=False, index=True
+    )
+    # NULL store_id = applies to every store; a store-specific override wins over it.
+    store_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE")
+    )
+    price_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Optional validity window (NULL = open-ended); an override applies only while active.
+    valid_from: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    valid_to: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
