@@ -26,6 +26,7 @@ from libs.eventbus import EventHandler
 from libs.observability import instrument_sqlalchemy, setup_telemetry
 
 from .api.health import router as health_router
+from .api.v1 import api_router
 from .config import Settings, get_settings
 from .errors import register_exception_handlers
 from .eventbus_workers import EventBusWorkers, build_eventbus_config, log_event_handler
@@ -120,6 +121,7 @@ def create_app(
     app.add_middleware(RequestIdMiddleware)
 
     app.include_router(health_router)
+    app.include_router(api_router)
 
     # OTel tracing + Prometheus /metrics (AI-1.13). Last, so the FastAPI span wraps
     # the whole middleware stack; the SQLAlchemy engine is instrumented in lifespan.
