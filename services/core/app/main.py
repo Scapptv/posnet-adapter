@@ -69,11 +69,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # JWT verifier shares the app Redis for JWKS caching (AI-1.9.3).
     app.state.token_verifier = build_token_verifier(settings, redis)
 
-    # DB span instrumentation needs the live engine(s) (AI-1.13).
+    # DB span instrumentation needs the live engine(s) (AI-1.13). Dedupe so the
+    # fallback (single shared engine) is instrumented once, a split pool twice.
     if settings.otel_enabled and app.state.tracer_provider is not None:
-        instrument_sqlalchemy(system_engine, app.state.tracer_provider)
-        if app_engine is not system_engine:
-            instrument_sqlalchemy(app_engine, app.state.tracer_provider)
+        for db_engine in dict.fromkeys((system_engine, app_engine)):
+            instrument_sqlalchemy(db_engine, app.state.tracer_provider)
 
     # EventBus relay + consumer on the system (RLS-exempt) session factory — the
     # cross-tenant role they need to drain every tenant's outbox (AI-1.9.5, ADR-0017).
