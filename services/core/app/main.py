@@ -48,6 +48,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         pool_size=settings.db_pool_size,
         max_overflow=settings.db_max_overflow,
         pool_recycle=settings.db_pool_recycle,
+        pool_pre_ping=settings.db_pool_pre_ping,
     )
     redis: Redis = Redis.from_url(settings.redis_url)
     app.state.engine = engine
@@ -71,9 +72,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         workers.start()
     app.state.eventbus_workers = workers
 
+    # Startup complete: advertise readiness (gates /readyz, AI-1.18).
+    app.state.ready = True
     try:
         yield
     finally:
+        # Drain first: stop passing readiness so the orchestrator removes us from
+        # rotation before we tear down, letting in-flight requests finish.
+        app.state.ready = False
         if workers is not None:
             await workers.stop()
         await redis.aclose()
@@ -96,6 +102,9 @@ def create_app(
     app.state.tracer_provider = None  # set by setup_telemetry below (if enabled)
     # Process-wide, content-only — built once (no IO), shared by i18n requests.
     app.state.translator = build_translator()
+    # Flipped True at the end of lifespan startup, False on shutdown (AI-1.18);
+    # /readyz reports not-ready until then.
+    app.state.ready = False
 
     register_exception_handlers(app)
 

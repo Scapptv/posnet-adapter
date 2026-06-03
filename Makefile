@@ -155,8 +155,8 @@ seed: ## Test data seed
 	$(PYTHON) scripts/seed_data.py
 
 .PHONY: backup
-backup: ## DB backup → MinIO
-	bash scripts/db_backup.sh
+backup: ## DB backup (pg_dump → local + opsional MinIO/S3)
+	$(PYTHON) scripts/db_backup.py
 
 # ---- Smoke / Load ----
 .PHONY: smoke

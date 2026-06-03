@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     db_pool_size: int = Field(default=20, alias="DATABASE_POOL_SIZE")
     db_max_overflow: int = Field(default=10, alias="DATABASE_MAX_OVERFLOW")
     db_pool_recycle: int = Field(default=3600, alias="DATABASE_POOL_RECYCLE")
+    # Liveness-check a pooled connection before use, so a stale/dropped connection
+    # (DB restart, idle timeout) is transparently recycled instead of erroring.
+    db_pool_pre_ping: bool = Field(default=True, alias="DATABASE_POOL_PRE_PING")
     # Non-owner, RLS-enforced role the request pipeline switches into per request
     # (SET LOCAL ROLE) so tenant isolation applies (ADR-0013/0015).
     db_app_role: str = Field(default="posnet_app", alias="DATABASE_APP_ROLE")

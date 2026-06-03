@@ -17,3 +17,8 @@ def test_defaults() -> None:
 @pytest.mark.unit
 def test_get_settings_returns_settings() -> None:
     assert isinstance(get_settings(), Settings)
+
+
+@pytest.mark.unit
+def test_db_pool_pre_ping_defaults_on() -> None:
+    assert Settings().db_pool_pre_ping is True

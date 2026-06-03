@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from services.core.app.config import Settings
@@ -58,3 +59,22 @@ def test_readyz_degraded_when_redis_down(pg_sqlalchemy_url: str) -> None:
     assert body["status"] == "degraded"
     assert body["database"] == "ok"
     assert body["redis"] == "error"
+
+
+@pytest.mark.integration
+def test_readyz_unavailable_while_draining(pg_sqlalchemy_url: str, redis_url: str) -> None:
+    # The lifecycle gate (set on shutdown) short-circuits before dep checks, so the
+    # orchestrator drains traffic even while Postgres/Redis are still reachable.
+    app: FastAPI = create_app(
+        Settings(
+            database_url=pg_sqlalchemy_url,
+            redis_url=redis_url,
+            rate_limit_storage_uri="memory://",
+            eventbus_enabled=False,
+        )
+    )
+    with TestClient(app) as client:
+        app.state.ready = False  # simulate the shutdown drain window
+        response = client.get("/readyz")
+    assert response.status_code == 503
+    assert response.json() == {"status": "unavailable"}

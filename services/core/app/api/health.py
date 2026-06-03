@@ -20,6 +20,12 @@ async def healthz() -> dict[str, str]:
 
 @router.get("/readyz")
 async def readyz(request: Request, response: Response) -> dict[str, str]:
+    # Lifecycle gate: not-ready while starting up or draining on shutdown, so the
+    # orchestrator stops routing before in-flight requests finish (graceful drain).
+    if not getattr(request.app.state, "ready", False):
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "unavailable"}
+
     checks: dict[str, str] = {}
     ready = True
 
