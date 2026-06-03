@@ -105,7 +105,7 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 - ✅ Toolchain: Python 3.12 (uv) · make · Docker v29.4.3 · node v24.8 + pnpm 10.18
 - ✅ İki ayrı posnet layihəsi (`adapter_*` vs help-center `posnet_*`); port toqquşmaları həll
 - ✅ pytest cov no-data fix; secrets baseline təmizləndi (lock/node_modules exclude)
-- ⏳ **GitHub remote/repo** — CI işləməsi üçün insan qurmalı (paralel)
+- ✅ **GitHub:** `Scapptv/posnet-adapter` (private) push olundu (59 commit, 2026-06-03); git identity = `Scapptv <scapptv@gmail.com>` (köhnə huseyn/hc kimlikləri hər yerdən silindi). CI ilk run `startup_failure` (yeni repo glitch) → re-trigger izlənilir.
 - ⏳ CVE remediation (ADR-0010): 3 CVE ignored — G7-də məcburi
 
 ## Gate vəziyyəti
