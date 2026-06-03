@@ -226,3 +226,64 @@ class ProductImage(Base, UUIDPrimaryKeyMixin):
     )
     url: Mapped[str] = mapped_column(Text, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+
+
+# ----------------------------------------------------------------------------
+# Inventory domain (AI-2.2) — per-(variant, warehouse) stock levels with an
+# append-only movement journal. ``available = qty - reserved_qty``; reservations
+# are the anti-oversell mechanism (a sale across channels reserves before it ships).
+# ----------------------------------------------------------------------------
+
+
+class Warehouse(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "warehouses"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    type: Mapped[str] = mapped_column(String(20), nullable=False, server_default=text("'store'"))
+
+
+class Inventory(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "inventory"
+    __table_args__ = (
+        UniqueConstraint("variant_id", "warehouse_id", name="uq_inventory_variant_warehouse"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("variants.id"), nullable=False, index=True
+    )
+    warehouse_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("warehouses.id"), nullable=False
+    )
+    qty: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("0"))
+    reserved_qty: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("0"))
+    min_qty: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("0"))
+    # Optimistic-lock counter, bumped on every movement (clients may pass it back to
+    # detect a stale write; the row is also SELECT ... FOR UPDATE-locked per movement).
+    version: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+
+
+class StockMovement(Base, UUIDPrimaryKeyMixin):
+    __tablename__ = "stock_movements"
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    variant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("variants.id"), nullable=False, index=True
+    )
+    warehouse_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("warehouses.id"), nullable=False
+    )
+    # in | out | reserve | unreserve | adjust (roadmap §16 "type")
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    qty: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    reference: Mapped[str | None] = mapped_column(Text)
+    moved_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
