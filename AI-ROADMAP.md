@@ -475,6 +475,7 @@ OPK (AZ Onlayn Nəzarət-Kassa, fiskal).
 | 0012 | POS-anchored İnteqrasiya Hub reframe | ACCEPTED (0011-i incələşdirir) |
 | 0013 | EventBus: pgmq transactional outbox (hub onurğası) | ACCEPTED (AI-1.14) |
 | 0014 | Dev/prod sirr sərhədi + Keycloak foundation client topologiyası | ACCEPTED (AI-1.7) |
+| 0015 | Tenant həlli: Keycloak subject → DB lookup (`users.external_subject`) | ACCEPTED (AI-1.11) |
 | 0004–0009 | (rezerv — boşluq; lazım olduqca yaradılır) | — |
 
 ---

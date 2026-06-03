@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** AI-1 (FOUNDATION) — G0 ✅ təsdiqləndi (2026-06-01, operator Huseyn)
-**Cari task:** AI-1.9.3 (Auth dependency `get_principal` + TenantContext RLS injection = AI-1.11) — AI-1.9 5 dilimə bölündü (aşağıda)
-**Son commit:** `9427185` — feat(core): AI-1.9.2 RequestId + structured logging + RFC 7807 errors
-**Son uğurlu verify:** 2026-06-02; AI-1.9.2 TAM (RequestId+logging+RFC7807: 10 yeni test, **ümumi coverage 100%**, 121 test)
+**Cari task:** AI-1.9.4 (CORS + security headers + slowapi rate limiter = AI-1.12) — AI-1.9 5 dilimə bölündü (aşağıda)
+**Son commit:** `3a80b73` — feat(core): AI-1.9.3 auth + tenant RLS injection
+**Son uğurlu verify:** 2026-06-03; AI-1.9.3 TAM (auth dep + tenant RLS injection: 24 yeni test, **ümumi coverage 100%**, 145 test)
 **Vəziyyət:** AI-1 IN_PROGRESS
 
 ---
@@ -71,14 +71,15 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
   - [x] **AI-1.9.2** — RequestId middleware (pure ASGI, contextvar + scope key; X-Request-ID echo/generate) · structlog
     (JSON prod / console local, request_id processor; AI-1.2-dən təxir edilmiş logger) · access-log middleware ·
     global RFC 7807 handler-lər (DomainError→problem+json, ValidationError→422, HTTPException, generic→500 leak-siz) · *əhatə: **AI-1.10*** — 2026-06-02
-  - [ ] **AI-1.9.3 ← CARİ** — Auth dependency (`get_principal`: Bearer→verify→Principal) + `require_role`/`require_permission` Depends ·
-    TenantContext: tenant həlli (token sub/email → `users.tenant_id` DB lookup) + per-request `SET LOCAL app.current_tenant` · *əhatə: **AI-1.11**; tenant_id strategiya qərarı (ADR-0014 təxiri)*
-  - [ ] **AI-1.9.4** — CORS (konfiqurabel) · security headers (HSTS/CSP/X-Content-Type-Options/X-Frame-Options/Referrer-Policy) ·
+  - [x] **AI-1.9.3** — Auth dependency (`get_principal`: Bearer→verify→Principal; TokenVerifier lifespan-da) + `requires_role`/`requires_permission` Depends ·
+    TenantContext: `get_tenant_session` subject→`users.external_subject` DB lookup (owner, RLS-exempt) → `SET LOCAL ROLE posnet_app` + `app.current_tenant` (RLS) ·
+    super_admin cross-tenant; naməlum/deaktiv subject→403 · **ADR-0015** (subject→DB lookup; JWT-claim/email redd) · **migration 0003** (`users.external_subject` qlobal unique) · *əhatə: **AI-1.11*** — 2026-06-03
+  - [ ] **AI-1.9.4 ← CARİ** — CORS (konfiqurabel) · security headers (HSTS/CSP/X-Content-Type-Options/X-Frame-Options/Referrer-Policy) ·
     slowapi rate limiter (Redis) → 429 problem+json (101→429 test) · *əhatə: **AI-1.12***
   - [ ] **AI-1.9.5** — eventbus relay/consumer-i app `lifespan`-da başlat + `pgmq.ensure_queue`; **relay/consumer üçün cross-tenant DB rolu**
     (BYPASSRLS/owner + pgmq schema grant) · *əhatə: **AI-1.14 follow-up*** — (1.9.1-dən ayrıldı: relay `posnet_app` RLS altında outbox-u görə bilməz)
 - [x] **AI-1.10** Global error handler (RFC 7807) ✅ — **AI-1.9.2-də** (2026-06-02)
-- [ ] AI-1.11 Tenant context middleware (RLS injection) — **AI-1.9.3-də**
+- [x] **AI-1.11** Tenant context (RLS injection) ✅ — **AI-1.9.3-də** (2026-06-03, ADR-0015)
 - [ ] AI-1.12 CORS + security headers + rate limiter — **AI-1.9.4-də**
 - [ ] AI-1.13 OTel + Prometheus + Grafana + Loki wiring (app → mövcud stack) — Tracing slot middleware sırasında
 - [x] **AI-1.14** pgmq publisher + outbox + consumer + DLQ — hub onurğası ✅ (2026-06-02, ADR-0013)
@@ -101,8 +102,8 @@ POS = tək həqiqət mənbəyi; hub məhsul/stok/qiyməti marketplace/delivery/b
 
 ## Gate vəziyyəti
 - **G0 (Bootstrap): ✅ APPROVED** (2026-06-01, Huseyn)
-- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅;
-  qalan: AI-1.9.3-5 (auth+tenant RLS · CORS+rate · eventbus-lifespan+relay rolu) · observability(1.13) · onboarding(1.15) · CRUD(1.16) · flags/i18n(1.17) · health/shutdown(1.18) · `v0.1.0-alpha` tag
+- **G1 (Foundation): 🔵 CARİ** — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅;
+  qalan: AI-1.9.4-5 (CORS+sec-headers+rate · eventbus-lifespan+relay rolu) · observability(1.13) · onboarding(1.15) · CRUD(1.16) · flags/i18n(1.17) · health/shutdown(1.18) · `v0.1.0-alpha` tag
 - G2 (POS Core): canonical model "hub-a hazır"
 - **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
 - **G-V (Validasiya):** retail satıcı demo (kill/continue)
