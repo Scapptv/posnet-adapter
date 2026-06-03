@@ -72,10 +72,10 @@ wait-healthy:
 	@$(COMPOSE) ps
 
 # ---- Quality ----
-# NOTE: `test` AI-1.1 (Test infra)-da verify-ə əlavə olunacaq. Hələlik AI-0-da
-# heç bir test mövcud deyil; pytest+coverage gate AI-1.1-də quraşdırılır.
+# `test` AI-2.H3-də verify-ə əlavə olundu (audit A5): coverage-paint əleyhinə —
+# verify lokal CI ekvivalentidir, suite (real DB + RLS) hər dəfə icra olunmalıdır.
 .PHONY: verify
-verify: lint type security ## CI ekvivalenti (AI-1.1+ test daxil ediləcək)
+verify: lint type test security ## CI ekvivalenti (lint + type + test + security)
 	@printf "$(GREEN)✓ All checks passed$(RESET)\n"
 
 .PHONY: lint

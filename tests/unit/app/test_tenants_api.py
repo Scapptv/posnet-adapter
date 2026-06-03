@@ -1,22 +1,25 @@
-"""AI-1.15 — tenant onboarding request schema + endpoint gating (unit, no IO)."""
+"""AI-1.15 — tenant onboarding request schema + endpoint gating (unit, no IO).
+
+The success-path response build and IntegrityError → 409 mapping live in real
+integration tests (``test_onboard_endpoint_super_admin_creates_tenant`` and
+``test_onboard_endpoint_duplicate_subject_conflicts`` in
+``tests/integration/test_onboarding.py``) — running through the full
+middleware + DB + RLS stack rather than a monkeypatched stub (AI-2.H3, audit
+A5 coverage-paint cleanup).
+"""
 
 from __future__ import annotations
 
 from typing import Any
-from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from sqlalchemy.exc import IntegrityError
 
 from libs.auth import Principal
-from libs.common import ConflictError
 from services.core.app.api.deps import get_principal, get_tenant_session
-from services.core.app.api.v1 import tenants as tenants_module
 from services.core.app.api.v1.tenants import TenantOnboardRequest
 from services.core.app.config import Settings
-from services.core.app.domain.onboarding import TenantOnboarded
 from services.core.app.main import create_app
 
 # ---- request schema ----
@@ -84,51 +87,3 @@ def test_onboard_forbidden_for_non_super_admin() -> None:
             },
         )
     assert response.status_code == 403
-
-
-@pytest.mark.unit
-async def test_onboard_endpoint_builds_response(monkeypatch: pytest.MonkeyPatch) -> None:
-    # Call the route function in the main thread (coverage can't trace the
-    # post-await response build under TestClient's greenlet) with onboard_tenant
-    # stubbed, so the success-path response mapping is covered deterministically.
-    tenant_id, user_id = uuid4(), uuid4()
-
-    async def _fake_onboard(_session: object, **kwargs: str) -> TenantOnboarded:
-        return TenantOnboarded(
-            tenant_id=tenant_id, admin_user_id=user_id, name=kwargs["name"], status="active"
-        )
-
-    monkeypatch.setattr(tenants_module, "onboard_tenant", _fake_onboard)
-    response = await tenants_module.onboard(
-        TenantOnboardRequest(
-            name="Acme", country_code="AZ", admin_email="a@acme.io", admin_subject="kc-1"
-        ),
-        _admin=Principal(
-            subject="s", username="u", email="e@x.io", roles=frozenset({"super_admin"})
-        ),
-        session=None,  # type: ignore[arg-type]  # the stub ignores it
-    )
-    assert response.tenant_id == tenant_id
-    assert response.admin_user_id == user_id
-    assert response.name == "Acme"
-    assert response.status == "active"
-
-
-@pytest.mark.unit
-async def test_onboard_endpoint_maps_integrity_error_to_conflict(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def _raise(_session: object, **_kwargs: str) -> None:
-        raise IntegrityError("INSERT", {}, Exception("duplicate key"))
-
-    monkeypatch.setattr(tenants_module, "onboard_tenant", _raise)
-    with pytest.raises(ConflictError):
-        await tenants_module.onboard(
-            TenantOnboardRequest(
-                name="Acme", country_code="AZ", admin_email="a@acme.io", admin_subject="kc-1"
-            ),
-            _admin=Principal(
-                subject="s", username="u", email="e@x.io", roles=frozenset({"super_admin"})
-            ),
-            session=None,  # type: ignore[arg-type]
-        )
