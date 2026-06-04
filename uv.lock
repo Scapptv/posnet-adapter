@@ -1576,7 +1576,6 @@ dependencies = [
     { name = "prometheus-client" },
     { name = "prometheus-fastapi-instrumentator" },
     { name = "psycopg", extra = ["binary", "pool"] },
-    { name = "pybreaker" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dateutil" },
@@ -1587,7 +1586,6 @@ dependencies = [
     { name = "starlette" },
     { name = "structlog" },
     { name = "tembo-pgmq-python" },
-    { name = "tenacity" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -1641,7 +1639,6 @@ requires-dist = [
     { name = "prometheus-client", specifier = ">=0.20.0,<1.0" },
     { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0.0,<9.0" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.1.18,<4.0" },
-    { name = "pybreaker", specifier = ">=1.0.0,<2.0" },
     { name = "pydantic", specifier = ">=2.6.0,<3.0" },
     { name = "pydantic-settings", specifier = ">=2.2.0,<3.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.2,<9.0" },
@@ -1660,7 +1657,6 @@ requires-dist = [
     { name = "starlette", specifier = ">=0.40.0,<1.0" },
     { name = "structlog", specifier = ">=24.1.0,<25.0" },
     { name = "tembo-pgmq-python", specifier = ">=0.8.0,<1.0" },
-    { name = "tenacity", specifier = ">=8.2.0,<9.0" },
     { name = "testcontainers", extras = ["postgres", "redis"], marker = "extra == 'dev'", specifier = ">=4.0.0,<5.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.27.0,<1.0" },
 ]
@@ -1861,15 +1857,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5c/5f/6583902b6f79b399c9c40674ac384fd9cd77805f9e6205075f828ef11fb2/pyasn1-0.6.3.tar.gz", hash = "sha256:697a8ecd6d98891189184ca1fa05d1bb00e2f84b5977c481452050549c8a72cf", size = 148685, upload-time = "2026-03-17T01:06:53.382Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5d/a0/7d793dce3fa811fe047d6ae2431c672364b462850c6235ae306c0efd025f/pyasn1-0.6.3-py3-none-any.whl", hash = "sha256:a80184d120f0864a52a073acc6fc642847d0be408e7c7252f31390c0f4eadcde", size = 83997, upload-time = "2026-03-17T01:06:52.036Z" },
-]
-
-[[package]]
-name = "pybreaker"
-version = "1.4.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f2/89/fbf98e383f1ec6d117af2cd983efdb3eb7018b63834c427025764194cac2/pybreaker-1.4.1.tar.gz", hash = "sha256:8df2d245c73ba40c8242c56ffb4f12138fbadc23e296224740c2028ea9dc1178", size = 15555, upload-time = "2025-09-21T15:12:04.499Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/75/e64d3d40a741e2be21d69154f4e5c43a66f0c603c5ef11f49e01429a5932/pybreaker-1.4.1-py3-none-any.whl", hash = "sha256:b4dab4a05195b7f2a64a6c1a6c4ba7a96534ef56ea7210e6bcb59f28897160e0", size = 12915, upload-time = "2025-09-21T15:12:02.284Z" },
 ]
 
 [[package]]
@@ -2518,15 +2505,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/e6/4d/b8d0547ee3b4fc01b09eb8844f0a7f81c06d1e924760daf4a4088df60482/tembo_pgmq_python-0.10.0.tar.gz", hash = "sha256:eff7e74d10a1afc1a6d51c1e817581ef537c5bc5f20ac4d9f6a02abd12d6a50b", size = 10850, upload-time = "2025-03-31T13:49:28.881Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/28/75/9357a40c41a31b16280fbc90c4d8ecdb7b3e258af3f531e8192caa365af5/tembo_pgmq_python-0.10.0-py3-none-any.whl", hash = "sha256:53e83c08a30f09fa3c5c49d1d26f7faced06cf40c7c132644195e2da5ff743b1", size = 11273, upload-time = "2025-03-31T13:49:28.004Z" },
-]
-
-[[package]]
-name = "tenacity"
-version = "8.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a3/4d/6a19536c50b849338fcbe9290d562b52cbdcf30d8963d3588a68a4107df1/tenacity-8.5.0.tar.gz", hash = "sha256:8bc6c0c8a09b31e6cad13c47afbed1a567518250a9a171418582ed8d9c20ca78", size = 47309, upload-time = "2024-07-05T07:25:31.836Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/3f/8ba87d9e287b9d385a02a7114ddcef61b26f86411e121c9003eb509a1773/tenacity-8.5.0-py3-none-any.whl", hash = "sha256:b594c2a5945830c267ce6b79a166228323ed52718f30302c1359836112346687", size = 28165, upload-time = "2024-07-05T07:25:29.591Z" },
 ]
 
 [[package]]
