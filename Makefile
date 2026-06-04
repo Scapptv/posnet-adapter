@@ -158,6 +158,10 @@ seed: ## Test data seed
 backup: ## DB backup (pg_dump → local + opsional MinIO/S3)
 	$(PYTHON) scripts/db_backup.py
 
+.PHONY: reconcile
+reconcile: ## Kanal stok/qiymət reconciliation (drift təpib + təmir; cron entrypoint)
+	$(PYTHON) scripts/reconcile_channel_stock.py
+
 # ---- Smoke / Load ----
 .PHONY: smoke
 smoke: ## Faza-spesifik smoke test

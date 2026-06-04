@@ -40,9 +40,7 @@ from libs.adapter import (
     AdapterPermanentError,
     AdapterRetryableError,
     ChannelAdapter,
-    CircuitBreaker,
     CircuitBreakerOpenError,
-    TokenBucket,
 )
 from libs.canonical_model import CanonicalPrice
 from libs.eventbus import Event
@@ -55,6 +53,7 @@ from ..domain.events import (
 from ..domain.pricing import resolve_price
 from ..infrastructure.db.models import Channel, ChannelListing, Variant
 from .canonical import build_canonical_product
+from .guard import ChannelGuard, GuardConfig
 
 _log = logging.getLogger(__name__)
 
@@ -97,8 +96,16 @@ class SyncDispatcher:
         self._factory = adapter_factory
         self._config = config or DispatcherConfig()
         self._clock = clock
-        self._limiters: dict[UUID, TokenBucket] = {}
-        self._breakers: dict[UUID, CircuitBreaker] = {}
+        # Shared rate-limit + breaker mechanism (also used by reconcile, 5.6.2).
+        self._guard_impl = ChannelGuard(
+            GuardConfig(
+                rate_per_second=self._config.rate_per_second,
+                rate_burst=self._config.rate_burst,
+                rate_acquire_timeout_seconds=self._config.rate_acquire_timeout_seconds,
+                breaker_fail_max=self._config.breaker_fail_max,
+                breaker_reset_seconds=self._config.breaker_reset_seconds,
+            )
+        )
 
     async def __call__(self, session: AsyncSession, event: Event) -> None:
         """Entry point invoked by :class:`~libs.eventbus.Consumer`."""
@@ -223,32 +230,8 @@ class SyncDispatcher:
         return listing
 
     # ----------------------------------------------------------------
-    # Rate limit + circuit breaker + error classification
+    # Error-classification policy over the shared ChannelGuard
     # ----------------------------------------------------------------
-
-    def _limiter_for(self, channel_id: UUID) -> TokenBucket:
-        limiter = self._limiters.get(channel_id)
-        if limiter is None:
-            limiter = TokenBucket(
-                rate_per_second=self._config.rate_per_second,
-                capacity=self._config.rate_burst,
-            )
-            self._limiters[channel_id] = limiter
-        return limiter
-
-    def _breaker_for(self, channel_id: UUID) -> CircuitBreaker:
-        breaker = self._breakers.get(channel_id)
-        if breaker is None:
-            breaker = CircuitBreaker(
-                fail_max=self._config.breaker_fail_max,
-                reset_timeout=self._config.breaker_reset_seconds,
-                # Don't trip the breaker on non-retryable errors — they're
-                # caused by bad payloads or stale credentials, not a sick
-                # upstream.
-                excluded_exceptions=(AdapterAuthError, AdapterPermanentError),
-            )
-            self._breakers[channel_id] = breaker
-        return breaker
 
     async def _guard(
         self,
@@ -263,12 +246,8 @@ class SyncDispatcher:
         (breaker open) or the adapter raised a non-retryable error. Re-raises
         retryable errors so the consumer's backoff fires.
         """
-        await self._limiter_for(channel.id).acquire(
-            timeout=self._config.rate_acquire_timeout_seconds
-        )
-        breaker = self._breaker_for(channel.id)
         try:
-            return await breaker.call(op, *args, **kwargs)
+            return await self._guard_impl.call(channel.id, op, *args, **kwargs)
         except CircuitBreakerOpenError:
             _log.warning(
                 "sync_skip_breaker_open",
