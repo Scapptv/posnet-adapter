@@ -1,4 +1,4 @@
-"""Channel webhook ingress (AI-2.5.4, roadmap §17.3 inbound).
+"""Channel webhook ingress (AI-2.5.4 + AI-2.5.5, roadmap §17.3 inbound).
 
 ``POST /v1/channels/{tenant_id}/{code}/webhook`` is the door every channel
 posts orders through. The flow:
@@ -9,35 +9,38 @@ posts orders through. The flow:
 3. Verify the HMAC signature in the channel-specific header (declared in the
    adapter's :class:`AdapterCapabilities.webhook_signature_header`).
 4. Hand the raw body to ``adapter.normalize_webhook`` for canonical parsing.
-5. Insert into ``channel_orders`` with the channel's
-   ``UNIQUE(channel_id, channel_order_id)`` constraint — a redelivered
-   webhook trips it and returns ``200`` without a second insert
-   (at-least-once → exactly-once).
-6. Return ``200 OK`` with the canonical order's ``channel_order_id`` so the
-   channel's retry loop stops.
+5. ``ingest_channel_order`` (AI-2.5.5): insert into ``channel_orders``
+   (``UNIQUE(channel_id, channel_order_id)`` makes redelivery idempotent) and
+   **reserve POS stock** for every line — anti-oversell, all-or-nothing. The
+   order ends ``reserved`` (stock held) or ``rejected`` (unknown SKU / oversold)
+   but is always persisted.
+6. After the transaction commits, **acknowledge** the outcome back to the
+   channel (best-effort — a failed ack never fails the webhook; reconciliation
+   AI-2.5.6 retries the miss).
+7. Return ``200 OK`` with the canonical ``channel_order_id`` + final status so
+   the channel's retry loop stops.
 
 The endpoint NEVER touches the per-request RLS pool: it's not a user-driven
 endpoint, so there's no Bearer token / Keycloak subject to resolve. The
-system (owner) pool bypasses RLS — the WITH CHECK still passes because the
+system (owner) pool bypasses RLS — the WITH CHECK still passes because every
 insert carries the correct ``tenant_id``.
-
-Reservation / fulfillment is AI-2.5.5 — this endpoint only persists the
-canonical order.
 """
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
-import orjson
 from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from libs.adapter import AdapterPermanentError, verify_signature
+from libs.adapter import AdapterError, AdapterPermanentError, verify_signature
 
-from ...infrastructure.db.models import Channel, ChannelOrder
+from ...infrastructure.db.models import Channel
+from ...sync.order_ingest import ingest_channel_order
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["webhooks"])
 
@@ -91,25 +94,28 @@ async def receive_webhook(
         except AdapterPermanentError as exc:
             raise HTTPException(status_code=400, detail=exc.message) from exc
 
-        # Use a savepoint so a redelivered webhook (UNIQUE violation) rolls back
-        # only the duplicate insert; the outer transaction still commits cleanly
-        # with no side effects.
-        duplicate = False
-        try:
-            async with session.begin_nested():
-                session.add(
-                    ChannelOrder(
-                        tenant_id=tenant_id,
-                        channel_id=channel.id,
-                        channel_order_id=canonical.channel_order_id,
-                        canonical_payload=orjson.loads(canonical.model_dump_json()),
-                        status="received",
-                    )
-                )
-        except IntegrityError:
-            duplicate = True
+        outcome = await ingest_channel_order(
+            session, tenant_id=tenant_id, channel_id=channel.id, order=canonical
+        )
 
-    return {
-        "channel_order_id": canonical.channel_order_id,
-        "status": "duplicate" if duplicate else "received",
-    }
+    # Transaction committed: the order (and any reservations) are durable. Now
+    # tell the channel — best-effort, so a channel-side hiccup can't undo a
+    # safely-persisted order. Reconciliation (AI-2.5.6) sweeps up missed acks.
+    if outcome.ack_status is not None:
+        try:
+            await adapter.acknowledge_order(
+                channel_order_id=outcome.channel_order_id, status=outcome.ack_status
+            )
+        except AdapterError as exc:
+            _log.warning(
+                "webhook_ack_failed",
+                extra={
+                    "channel_id": str(channel.id),
+                    "channel_code": code,
+                    "channel_order_id": outcome.channel_order_id,
+                    "error_type": type(exc).__name__,
+                    "error_message": exc.message,
+                },
+            )
+
+    return {"channel_order_id": outcome.channel_order_id, "status": outcome.status}

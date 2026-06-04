@@ -1,12 +1,13 @@
-"""AI-2.5.4 — webhook ingress end-to-end.
+"""AI-2.5.4 + AI-2.5.5 — webhook ingress end-to-end.
 
 Drives ``POST /v1/channels/{tenant_id}/{code}/webhook`` against the real app
-with a stub adapter factory pointing at :class:`MockMarketplaceAdapter`.
-Covers the contract:
+with a stub adapter factory pointing at :class:`MockMarketplaceAdapter` (its
+HTTP client wired to a :class:`httpx.MockTransport` so the best-effort ack
+never touches the network). Covers the contract:
 
-* valid HMAC + valid body → ``200``, channel_orders row inserted.
-* redelivered webhook (same channel_order_id) → ``200`` with
-  ``status="duplicate"``, no second row.
+* valid HMAC + sellable SKU → ``200`` ``status="reserved"``, stock reserved.
+* redelivered webhook (same channel_order_id) → ``200`` ``status="duplicate"``,
+  no second row, stock reserved only once.
 * bad signature → ``401``, no row.
 * unknown channel → ``404``.
 * paused channel → ``404``.
@@ -22,6 +23,7 @@ import hmac
 from collections.abc import Iterator
 from typing import cast
 
+import httpx
 import orjson
 import psycopg
 import pytest
@@ -43,15 +45,59 @@ def _sign(body: bytes, secret: str = SECRET) -> str:
     return "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
 
 
+def _ack_ok(_request: httpx.Request) -> httpx.Response:
+    """Always-200 so the webhook's best-effort ack succeeds without a socket."""
+    return httpx.Response(200, json={"status": "ok"})
+
+
 def _adapter() -> ChannelAdapter:
+    client = httpx.AsyncClient(transport=httpx.MockTransport(_ack_ok), base_url="http://mock")
     return cast(
         ChannelAdapter,
-        MockMarketplaceAdapter(MockMarketplaceConfig(base_url="http://mock")),
+        MockMarketplaceAdapter(MockMarketplaceConfig(base_url="http://mock"), client=client),
     )
 
 
 def _factory(_channel: Channel) -> ChannelAdapter:
     return _adapter()
+
+
+def _seed_sellable(pg_dsn: str, tenant_id: str, *, sku: str, qty: int) -> None:
+    """Insert a product + variant + online warehouse + stock so an order for
+    ``sku`` can reserve. Direct SQL — the reservation path is what's under test."""
+    with psycopg.connect(pg_dsn, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO products (tenant_id, name) VALUES (%s, 'P') RETURNING id", (tenant_id,)
+        )
+        product = cur.fetchone()
+        assert product is not None
+        cur.execute(
+            "INSERT INTO variants (tenant_id, product_id, sku, base_price_minor) "
+            "VALUES (%s, %s, %s, 500) RETURNING id",
+            (tenant_id, product[0], sku),
+        )
+        variant = cur.fetchone()
+        assert variant is not None
+        cur.execute(
+            "INSERT INTO warehouses (tenant_id, name) VALUES (%s, 'W') RETURNING id", (tenant_id,)
+        )
+        warehouse = cur.fetchone()
+        assert warehouse is not None
+        cur.execute(
+            "INSERT INTO inventory (tenant_id, variant_id, warehouse_id, qty) VALUES (%s, %s, %s, %s)",
+            (tenant_id, variant[0], warehouse[0], qty),
+        )
+
+
+def _reserved_qty(pg_dsn: str, sku: str) -> int:
+    with psycopg.connect(pg_dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT i.reserved_qty FROM inventory i "
+            "JOIN variants v ON v.id = i.variant_id WHERE v.sku = %s",
+            (sku,),
+        )
+        row = cur.fetchone()
+    return int(row[0]) if row else -1
 
 
 @pytest.fixture
@@ -134,9 +180,10 @@ def _channel_orders_count(pg_dsn: str, channel_id: str) -> int:
 
 
 @pytest.mark.integration
-def test_valid_webhook_persists_order(app_with_factory: TestClient, pg_dsn: str) -> None:
+def test_valid_webhook_reserves_order(app_with_factory: TestClient, pg_dsn: str) -> None:
     tenant_id, channel_id = _seed_channel(pg_dsn)
-    body = _webhook_body()
+    _seed_sellable(pg_dsn, tenant_id, sku="ABC", qty=10)
+    body = _webhook_body()  # one line: sku ABC, qty 2
     response = app_with_factory.post(
         f"/v1/channels/{tenant_id}/mock-marketplace/webhook",
         content=body,
@@ -144,14 +191,16 @@ def test_valid_webhook_persists_order(app_with_factory: TestClient, pg_dsn: str)
     )
     assert response.status_code == 200, response.text
     payload = response.json()
-    assert payload["status"] == "received"
+    assert payload["status"] == "reserved"
     assert payload["channel_order_id"] == "MOCK-ORD-001"
     assert _channel_orders_count(pg_dsn, channel_id) == 1
+    assert _reserved_qty(pg_dsn, "ABC") == 2
 
 
 @pytest.mark.integration
 def test_redelivered_webhook_is_idempotent(app_with_factory: TestClient, pg_dsn: str) -> None:
     tenant_id, channel_id = _seed_channel(pg_dsn)
+    _seed_sellable(pg_dsn, tenant_id, sku="ABC", qty=10)
     body = _webhook_body("MOCK-ORD-DUP")
     sig = _sign(body)
 
@@ -167,8 +216,10 @@ def test_redelivered_webhook_is_idempotent(app_with_factory: TestClient, pg_dsn:
     )
     assert first.status_code == 200
     assert second.status_code == 200
+    assert first.json()["status"] == "reserved"
     assert second.json()["status"] == "duplicate"
     assert _channel_orders_count(pg_dsn, channel_id) == 1
+    assert _reserved_qty(pg_dsn, "ABC") == 2  # reserved once, not twice
 
 
 # ----------------------------------------------------------------
