@@ -7,7 +7,7 @@ shape: a class that omits any method should NOT satisfy isinstance.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import ClassVar
 
@@ -44,6 +44,9 @@ class _Complete:
     def map_category(self, canonical_category: Sequence[str]) -> str:
         return "/".join(canonical_category)
 
+    def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
+        raise NotImplementedError
+
 
 class _MissingPushStock:
     capabilities: ClassVar[AdapterCapabilities] = _caps()
@@ -64,6 +67,9 @@ class _MissingPushStock:
 
     def map_category(self, canonical_category: Sequence[str]) -> str:
         return "/".join(canonical_category)
+
+    def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
+        raise NotImplementedError
 
 
 @pytest.mark.unit

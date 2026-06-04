@@ -67,6 +67,12 @@ class AdapterCapabilities:
     """Optional taxonomy markers (e.g. ``{"marketplace", "az"}``). Used for
     grouped operator views; the sync engine ignores them."""
 
+    webhook_signature_header: str | None = None
+    """Header the channel uses to convey its HMAC signature (e.g.
+    ``"X-Webhook-Signature"``). The webhook endpoint reads this on a per-
+    channel basis so each channel can use its own convention. Required when
+    ``supports_webhook_orders`` is True; ignored otherwise."""
+
     def __post_init__(self) -> None:
         if not self.code:
             raise ValueError("AdapterCapabilities.code must be non-empty")

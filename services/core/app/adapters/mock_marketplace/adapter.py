@@ -14,7 +14,8 @@ adapters:
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, ClassVar
@@ -56,12 +57,13 @@ class MockMarketplaceAdapter:
     capabilities: ClassVar[AdapterCapabilities] = AdapterCapabilities(
         code=CODE,
         name="Mock Marketplace",
-        auth_kind="none",
+        auth_kind="hmac",
         supports_push_listing=True,
         supports_push_stock=True,
         supports_push_price=True,
         supports_pull_orders=True,
-        supports_webhook_orders=False,
+        supports_webhook_orders=True,
+        webhook_signature_header="X-Mock-Signature",
         rate_limit_rps=10,
         rate_limit_burst=20,
         tags=frozenset({"mock", "marketplace"}),
@@ -138,6 +140,20 @@ class MockMarketplaceAdapter:
         """Mock channel takes the canonical path joined by ``/`` verbatim.
         Real channels (Trendyol etc.) would hold a lookup table here."""
         return "/".join(canonical_category)
+
+    def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
+        """Mock channel posts the same JSON shape ``GET /orders`` would
+        return — single :class:`OrderDTO` per delivery. The webhook endpoint
+        verified the HMAC before this call (``headers`` carry the original
+        request headers in case a future channel needs request-scoped
+        context like timestamps)."""
+        try:
+            raw = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise AdapterPermanentError(f"webhook body is not JSON: {exc}") from exc
+        if not isinstance(raw, dict):
+            raise AdapterPermanentError("webhook body must be a JSON object")
+        return self._normalise_order(raw)
 
     # ----------------------------------------------------------------
     # Internals — HTTP wrapper + error classification

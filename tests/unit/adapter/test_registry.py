@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from datetime import datetime
 from typing import ClassVar
 
@@ -54,6 +54,9 @@ def _make_adapter(code: str, name: str = "X") -> type:
 
         def map_category(self, canonical_category: Sequence[str]) -> str:
             return "/".join(canonical_category)
+
+        def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
+            raise NotImplementedError
 
     _Adapter.__name__ = f"{name}Adapter"
     return _Adapter

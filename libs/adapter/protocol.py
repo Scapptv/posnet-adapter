@@ -27,7 +27,7 @@ Mapping helpers (sync, no IO):
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol, runtime_checkable
@@ -115,5 +115,17 @@ class ChannelAdapter(Protocol):
 
         Pure / synchronous: no IO. Adapters typically hold a mapping table
         keyed on the tuple of canonical segments.
+        """
+        ...
+
+    def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
+        """Parse a channel order webhook body into a :class:`CanonicalOrder`.
+
+        Pure / synchronous: no IO, no DB. The webhook endpoint has already
+        verified the HMAC signature; the adapter only has to reshape the
+        channel's JSON into the canonical envelope. Adapters whose channel
+        ingests via :meth:`pull_orders` instead may raise ``NotImplementedError``
+        — the webhook endpoint checks ``capabilities.supports_webhook_orders``
+        before calling.
         """
         ...

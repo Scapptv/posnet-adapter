@@ -13,6 +13,7 @@ from .roles import router as roles_router
 from .shifts import router as shifts_router
 from .tenants import router as tenants_router
 from .users import router as users_router
+from .webhooks import router as webhooks_router
 
 api_router = APIRouter(prefix="/v1")
 api_router.include_router(tenants_router)
@@ -24,5 +25,6 @@ api_router.include_router(catalog_router)
 api_router.include_router(inventory_router)
 api_router.include_router(pricing_router)
 api_router.include_router(shifts_router)
+api_router.include_router(webhooks_router)
 
 __all__ = ["api_router"]

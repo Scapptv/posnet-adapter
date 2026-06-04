@@ -470,3 +470,33 @@ class ChannelListing(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         String(20), nullable=False, server_default=text("'pending'")
     )
     last_synced_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+
+
+class ChannelOrder(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """Inbound channel order persistence (AI-2.5.4, migration 0012).
+
+    Every webhook lands here exactly once: the ``UNIQUE(channel_id,
+    channel_order_id)`` constraint catches redelivered webhooks at insert
+    time. Status walks ``received`` → ``reserved`` → ``fulfilled``, or
+    ``rejected`` if the payload can't be honoured (unknown SKU, oversold).
+    """
+
+    __tablename__ = "channel_orders"
+    __table_args__ = (
+        UniqueConstraint("channel_id", "channel_order_id", name="uq_channel_orders_channel_order"),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("tenants.id"), nullable=False, index=True
+    )
+    channel_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), _fk("channels.id"), nullable=False, index=True
+    )
+    channel_order_id: Mapped[str] = mapped_column(String(200), nullable=False)
+    canonical_payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, server_default=text("'received'")
+    )
+    received_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True), server_default=func.now(), nullable=False, index=True
+    )

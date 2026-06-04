@@ -30,6 +30,7 @@ from .errors import (
     AdapterRateLimitError,
     AdapterRetryableError,
 )
+from .hmac_verify import verify_signature
 from .protocol import ChannelAdapter, ChannelListingResult
 from .rate_limit import RateLimitTimeoutError, TokenBucket
 from .registry import (
@@ -61,4 +62,5 @@ __all__ = [
     "get_adapter",
     "list_adapters",
     "register_adapter",
+    "verify_signature",
 ]

@@ -20,7 +20,7 @@ Scenarios:
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -106,6 +106,9 @@ class RecordingAdapter:
 
     def map_category(self, canonical_category: Sequence[str]) -> str:
         return "/".join(canonical_category)
+
+    def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
+        raise NotImplementedError
 
 
 # ----------------------------------------------------------------
