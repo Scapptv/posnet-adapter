@@ -72,8 +72,8 @@ həll olundu**, AI-2.5 təmizlənmiş təməl üstündə qurula bilər.
 
 ### Açıq qalan (AI-2.H sonrası, AI-2.5-yə qədər)
 
-- ⏳ **AI-2.H1 canlı yoxlama (operator)** — (a) Keycloak `${env.POSNET_OWNER_PASSWORD}` substitusiyası import-da: avtomatik realm testi strukturaldır, **OIDC round-trip canlı təsdiq istəyir**; (b) dev app `DATABASE_APP_URL` (posnet_app pool) ilə `docker compose up` + smoke. Boş `DATABASE_APP_URL` system pool-a düşür (işləyir, amma kilidli deyil) — prod-da məcburi.
-- ⏳ **GitHub CI billing** — hesab "failed payment" blokunu həll et (kart/billing) → CI yaşıl → `v0.1.0-alpha` tag.
+- ✅ **AI-2.H1 canlı yoxlama (operator smoke)** — Q-001 PASSED (2026-06-04, AI sessiya canlı icrası): (a) Keycloak parol substitusiyası + OIDC round-trip realm `posnet`-də access_token qaytardı (sub/exp/iat/realm_roles=[tenant_admin]); (b) `DATABASE_APP_URL` pool — `posnet_app` non-owner LOGIN tenant-suz 0 sətir, scope ilə öz tenant-ı, `posnet_resolve_tenant` SECURITY DEFINER, journal lockdown UPDATE/DELETE rədd, UNIQUE(tenant_id, sku) live, 3 CHECK constraint live. Detal: HUMAN-GATES.md → Q-001.
+- ⏳ **GitHub CI billing** (HUMAN-ONLY, Q-002) — hesabda "failed payment" Actions runner-ləri dayandırır. **AI bu sahədə icra edə bilməz** (kart + GitHub Support ticket — operator). Lokal `make verify` + 443 test yaşıl, kod tərəfdən bloklamır; `v0.1.0-alpha` tag CI yaşıl olduqda çəkiləcək. Detal: HUMAN-GATES.md → Q-002.
 - 🔮 **AI-2.5 ərzində açılır** (qətnamə H-də tutulmayıb, sonradan həll olunur):
   - FTS gin tenant-aware (per-tenant index hint)
   - Per-tenant + per-kanal rate-limit

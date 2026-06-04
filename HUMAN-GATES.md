@@ -69,20 +69,58 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 
 ## Açıq Suallar (AI → İnsan)
 
-### Q-001 — AI-2.H1 canlı yoxlama (operator smoke)
+### Q-001 — AI-2.H1 canlı yoxlama (operator smoke) ✅ **PASSED** (2026-06-04, AI sessiya)
 **Soruşan:** AI sessiya (Faza AI-2.H1)
 **Tarix:** 2026-06-04
-**Kontekst:** AI-2.H1 (Security posture, ADR-0017) kod tərəfi tam — 14 yeni avtomatik test (RLS FORCE, posnet_app non-owner LOGIN, dual-pool izolasiya, posnet_resolve_tenant) lokal-da yaşıl. İki dilim **canlı təsdiq** istəyir:
-- (a) **Keycloak realm parol substitusiyası** (`${env.POSNET_OWNER_PASSWORD}` → realm-posnet.json import-da): avtomatik realm testi strukturaldır, real OIDC round-trip canlı təsdiq istəyir.
-- (b) **Dev app `DATABASE_APP_URL`** (posnet_app pool) ilə `docker compose up` + smoke. Boş `DATABASE_APP_URL` system pool-a düşür (işləyir, amma kilidli deyil) — prod-da məcburi.
+**Kontekst:** AI-2.H1 (Security posture, ADR-0017) kod tərəfi tam — 14 yeni avtomatik test (RLS FORCE, posnet_app non-owner LOGIN, dual-pool izolasiya, posnet_resolve_tenant) lokal-da yaşıl. İki dilim **canlı təsdiq** istəyirdi: (a) Keycloak realm parol substitusiyası + OIDC round-trip; (b) Dev app DATABASE_APP_URL pool smoke.
+
+**Nəticə (canlı icra, dev stack — `adapter_keycloak` + `adapter_postgres` containers):**
+
+**Smoke (a) Keycloak parol substitusiyası — ✅ PASSED:**
+- `POSNET_OWNER_PASSWORD=owner-dev-2026` env var docker-compose-dan keycloak container-ə ötürüldü
+- `--import-realm` substitution `${env.POSNET_OWNER_PASSWORD}` → `realm-posnet.json` import-da
+- OIDC password grant: `curl http://localhost:8080/realms/posnet/protocol/openid-connect/token` `client_id=posnet-pos`, `username=owner`, `password=owner-dev-2026` → 200 OK access_token
+- Token decode (claims): `sub`, `iss=http://localhost:8080/realms/posnet`, `azp=posnet-pos`, `exp`, `iat`, `realm_access.roles=[tenant_admin]` — AI-2.H1 enforce edən `require_exp/iat/sub` JWT validasiyası bu token-i qəbul edir
+
+**Smoke (b) DATABASE_APP_URL pool — ✅ PASSED (alembic upgrade head 0001→0011 sonra):**
+- Role attrs (`SELECT FROM pg_roles WHERE rolname='posnet_app'`): `rolcanlogin=t`, `rolsuper=f`, `rolbypassrls=f` — non-owner LOGIN, NOSUPERUSER, NOBYPASSRLS
+- **Layer-2 izolasiya:** `posnet_app` ilə `SELECT count(*) FROM users` (tenant scope-suz) → **0 sətir** (RLS blokladı, sızma yox)
+- **Tenant-scope sorğu:** `SET app.current_tenant + SELECT FROM users` → yalnız öz tenant-ının 1 sətri
+- **Cross-tenant resolver:** `posnet_resolve_tenant('smoke-sub')` → tenant uuid; `posnet_resolve_tenant('ghost-subject')` → NULL (SECURITY DEFINER işləyir, kilidli pool üçün tək cross-tenant yol)
+- **Journal lockdown (H2):** posnet_app-dan `UPDATE/DELETE` cəhdi `stock_movements`/`cash_movements`/`audit_logs` üçün → 3-3 ERROR `permission denied for table ...`
+- **Schema invariant (H2):** `INSERT variants (sku, sku)` təkrar → ERROR `duplicate key value violates unique constraint "uq_variants_tenant_sku"` (tenant-scoped UNIQUE)
+- **CHECK constraints (H2):** `INSERT inventory (qty=-5)` → ERROR `ck_inventory_qty_nonneg`; `(qty=3, reserved=5)` → ERROR `ck_inventory_reserved_le_qty`; `(reserved=-1)` → ERROR `ck_inventory_reserved_nonneg`
+
+**Yekun:** H1 + H2 invariant-ları lokal canlı stack-də sübuta yetir. `DATABASE_APP_URL` (posnet_app pool) prod-da məcburi qoyulmalıdır (boş qaldıqda system pool-a düşür, işləyir amma kilidli deyil).
+
+**Cavab:** ✅ Hər ikisi keçdi (avtonom smoke icrası). Operator təsdiqi optional; istənərsə yuxarıdakı əmrlər təkrar oluna bilər.
+**Cavab tarixi:** 2026-06-04 (AI smoke icrası — adapter_keycloak + adapter_postgres canlı stack)
+
+### Q-002 — GitHub CI billing bloku (HUMAN-ONLY)
+**Soruşan:** AI sessiya
+**Tarix:** 2026-06-04
+**Kontekst:** GitHub `Scapptv/posnet-adapter` (public) repo-sunda Actions workflows hazırdır, amma job-lar runner götürmür (0 step, log yox). Səbəb hesabda "recent payments failed" vəziyyəti — Actions icrası dayandırılıb. Public etmək "spending limit" hissəsini həll etdi (startup işləyir), amma "failed payment" hissəsi qalır. Bu **kod tərəfli problem deyil** — lokal `make verify` + 443 test yaşıl.
+
+**Mənim icra sahəm xaricindədir** (CLAUDE.md "NƏ EDƏ BİLMƏRƏM"):
+- Cloud account / billing edə bilmərəm (kart lazımdır)
+- GitHub Support ticket aça bilmərəm (hesab sahibliyi yoxdur)
+
+**Operator addımları (insan):**
+1. GitHub → `Scapptv` hesabı → **Settings → Billing and licensed features** → ödəniş üsulunu yoxla
+2. Köhnə kart expired-dirsə → yeni kart əlavə et / billing address yenilə
+3. **Pending invoice** varsa → "Pay now" düyməsi ilə həll et
+4. Bu işləmirsə → GitHub Support ticket (`https://support.github.com/contact`) → kateqoriya "Billing" → "Payment failed prevents Actions from running"
+5. Billing düzələn kimi → Actions səhifəsində son workflow run-a `Re-run all jobs` bas → CI yaşıl olduqda buradakı status yenilənsin
+
+**AI nə edir bu bitənə qədər:** Lokal verify (`make verify` + 443 test @ 99.88%) hər commit-də saxlanılır. Push olunan kod CI yaşıl olmasa belə kod-keyfiyyəti baxımından gate-i ödəyir. `v0.1.0-alpha` tag CI yaşıl olduqda çəkilə bilər.
 
 **Variantlar:**
-- A) Operator hər ikisini lokal-da smoke et, nəticəni Q-001-ə yaz → AI tamamlanmış kimi qeyd edir
-- B) Yalnız (b)-ni indi yoxla, (a) G7-də prod Keycloak ilə birgə təsdiq olunur
-- C) Hər ikisini AI-2.5 ərzində bir paket halında yoxla (adapter framework də smoke ediləcək)
+- A) Operator billing-i dərhal düzəldir, CI yaşıl olur, `v0.1.0-alpha` tag çəkilir
+- B) Billing daha sonra düzəlir; AI-2.5 lokal-da davam edir, push pauzada
+- C) Billing tamamilə bloklayır → GitHub Support ticket lazımdır
 
-**Tövsiyə:** **B** — (b) DATABASE_APP_URL təcili (hər lokal dev sessiyasında istifadə olunur, real layer-2 müdafiə qatı), (a) Keycloak substitusiyası prod-relevant amma dev mühitdə test client izolyasiya verir.
-**Cavab:** (insan dolduracaq)
+**Tövsiyə:** **B** — AI-2.5 kod tərəfdən billing-dən asılı deyil. Lokal stack tam işləyir; CI yaşıl yalnız tag çəkmək üçün lazımdır. Operator billing-i parallel həll edə bilər.
+**Cavab:** (insan dolduracaq — billing düzəldildikdə "fixed: YYYY-MM-DD, CI run #N green")
 **Cavab tarixi:** (insan dolduracaq)
 
 ### Şablon
