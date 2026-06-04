@@ -22,6 +22,7 @@ Surface:
 from __future__ import annotations
 
 from .capabilities import AdapterCapabilities, AuthKind
+from .circuit_breaker import CircuitBreaker, CircuitBreakerOpenError
 from .errors import (
     AdapterAuthError,
     AdapterError,
@@ -30,6 +31,7 @@ from .errors import (
     AdapterRetryableError,
 )
 from .protocol import ChannelAdapter, ChannelListingResult
+from .rate_limit import RateLimitTimeoutError, TokenBucket
 from .registry import (
     AdapterAlreadyRegisteredError,
     AdapterNotFoundError,
@@ -51,6 +53,10 @@ __all__ = [
     "AuthKind",
     "ChannelAdapter",
     "ChannelListingResult",
+    "CircuitBreaker",
+    "CircuitBreakerOpenError",
+    "RateLimitTimeoutError",
+    "TokenBucket",
     "clear_registry",
     "get_adapter",
     "list_adapters",

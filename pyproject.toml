@@ -139,6 +139,13 @@ ignore = [
 # i18n message catalog: az/tr dotless-ı and ru Cyrillic are intentional content,
 # not homoglyph mistakes (RUF001 ambiguous-unicode).
 "services/core/app/i18n.py" = ["RUF001"]
+# TokenBucket.acquire exposes ``timeout`` as part of its public API — callers
+# configure a per-call budget rather than wrapping each acquire in
+# ``asyncio.timeout``. The internal implementation does use ``asyncio.timeout``.
+"libs/adapter/rate_limit.py" = ["ASYNC109"]
+# SQLAlchemy Row unpacking comprehension narrows the mypy type from
+# Row[tuple[X, Y]] to tuple[X, Y]; not redundant despite C416.
+"services/core/app/sync/dispatcher.py" = ["C416"]
 
 [tool.ruff.format]
 quote-style = "double"

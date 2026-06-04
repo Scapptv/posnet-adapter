@@ -1,10 +1,10 @@
 # STATUS — Posnet
 
-**Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18); **Faza AI-2.H TAM (H1-H5)**; **AI-2.5 IN_PROGRESS (5.1 ✅)**
-**Cari task:** **AI-2.5.2** Sync dispatcher (outbox event → channel adapter routing, per-channel retry/rate-limit/circuit-breaker)
-**Son commit:** `bdf0bb0` — docs: Q-001 PASSED (operator smoke canlı) + Q-002 GitHub CI billing (HUMAN-ONLY)
-**Son uğurlu verify:** 2026-06-04; AI-2.5.1 TAM (477 test, libs/adapter coverage 94.3%, suite mənim hissəsində təmiz)
-**Vəziyyət:** AI-2 IN_PROGRESS (2.1–2.4 ✅; **AI-2.H1-H5 ✅ TAM**; **AI-2.5.1 ✅ adapter contract**). Növbəti AI-2.5 dilimi: sync dispatcher. GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (Q-002, operator), push pauza (lokal-only).
+**Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18); **Faza AI-2.H TAM (H1-H5)**; **AI-2.5 IN_PROGRESS (5.1-5.2 ✅)**
+**Cari task:** **AI-2.5.3** Mock marketplace (FastAPI) + ilk konkret adapter + contract test template
+**Son commit:** `e1674ee` — feat(adapter): AI-2.5.1 channel adapter contract (Protocol + Capabilities + Registry)
+**Son uğurlu verify:** 2026-06-04; AI-2.5.2 TAM (501 test, sync/dispatcher.py 94.4%)
+**Vəziyyət:** AI-2 IN_PROGRESS (2.1–2.4 ✅; **AI-2.H1-H5 ✅ TAM**; **AI-2.5.1 ✅** adapter contract; **AI-2.5.2 ✅** sync dispatcher). Növbəti AI-2.5 dilimi: mock marketplace + ilk adapter. GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (Q-002, operator), push pauza (lokal-only).
 
 ---
 
@@ -100,7 +100,7 @@ həll olundu**, AI-2.5 təmizlənmiş təməl üstündə qurula bilər.
 
 **Dilimlər (incremental, hər biri öz commit-i ilə):**
 - [x] **AI-2.5.1** ✅ — 2026-06-04. **Adapter contract** ([libs/adapter](libs/adapter)): `ChannelAdapter` Protocol (push_listing/push_stock/push_price/pull_orders/acknowledge_order/map_category) · `AdapterCapabilities` dataclass (code, auth_kind, supports_*, rate_limit_rps/burst, tags) · 4-tier error hierarchy (`AdapterError` → Retryable/RateLimit, Auth/Permanent — sync engine retry/DLQ classifier) · process-wide registry (`register_adapter/get_adapter/list_adapters/clear_registry`, code-mismatch + collision detection) · `ChannelListingResult` frozen dataclass. 34 yeni unit test → suite **477**. *(roadmap §17.2)*
-- [ ] **AI-2.5.2** Sync dispatcher — outbox event → adapter operation routing; `channel_listings`-dən external_listing_id resolve; per-channel token-bucket rate-limit; retry (exp backoff) + pybreaker circuit breaker + DLQ. *(roadmap §17.3 outbound)*
+- [x] **AI-2.5.2** ✅ — 2026-06-04. **Sync dispatcher** ([services/core/app/sync/dispatcher.py](services/core/app/sync/dispatcher.py)): `SyncDispatcher` EventHandler — outbox event → adapter operation routing. Event tip map: `catalog.variant.added` → push_listing (online_published gate + channel_listings create), `inventory.movement.applied` → push_stock (new_qty - new_reserved), `pricing.override.set` → push_price (resolve_price). **Per-channel token-bucket rate limit** ([libs/adapter/rate_limit.py](libs/adapter/rate_limit.py)): async, fair, monotonic clock, asyncio.timeout-based. **Async circuit breaker** ([libs/adapter/circuit_breaker.py](libs/adapter/circuit_breaker.py)): hand-rolled CLOSED → OPEN → HALF_OPEN state machine — pybreaker 1.0 `call_async` bug-ı vardı (Tornado-asılı gen.coroutine import-suz). Error classification: Retryable → re-raise (consumer backoff); Auth/Permanent → log + swallow (reconciliation 5.6 catches up); Breaker open → silent skip. 24 yeni test (7 rate limit + 7 breaker + 10 dispatcher integration) → suite **501** (dispatcher.py 94.4%). *(roadmap §17.3 outbound)*
 - [ ] **AI-2.5.3** Mock marketplace + ilk konkret adapter — `mocks/mock-marketplace` real FastAPI (in-memory store, HMAC, realistik latency / occasional 5xx) + `MockMarketplaceAdapter` (libs/adapter Protocol satışı) + contract test template (`tests/contract/adapter_contract.py` — registry + capabilities + idempotency invariant). *(§17.5)*
 - [ ] **AI-2.5.4** Webhook ingress — `POST /v1/channels/{code}/webhook` (HMAC verify) → eventbus → adapter.normalize → `CanonicalOrder` → Order context → POS stok decrement (reservation → out) → `acknowledge_order`. *(§17.3 inbound)*
 - [ ] **AI-2.5.5** E2E MVP — POS məhsul → push_listing → mock görür → stok/qiymət dəyiş push → mock sifariş webhook → POS stok azalır → ack. **0 oversell**. *(§17.6)*
