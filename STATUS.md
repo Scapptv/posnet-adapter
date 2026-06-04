@@ -1,10 +1,10 @@
 # STATUS — Posnet
 
-**Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18); **Faza AI-2.H TAM (H1-H5)**
-**Cari task:** **AI-2.5** (Adapter framework + 1 kanal — mock-marketplace → real) hardening təməli üstündə
-**Son commit:** `af5ceed` — chore: STATUS — AI-2.H4 sync change-feed tam; növbəti AI-2.H5
-**Son uğurlu verify:** 2026-06-04; AI-2.H5 TAM (443 test, coverage 99.88% lokal)
-**Vəziyyət:** AI-2 IN_PROGRESS (2.1–2.4 ✅; **AI-2.H1-H5 ✅ TAM** — təhlükəsizlik + data identity + anti-oversell proof + sync change-feed + sync model enabler). **$100M audit** (6 agent) → **Faza AI-2.H (hardening) TAM** (ADR-0016/0017/0018); növbəti **AI-2.5** adapter framework. GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (hesab billing), push pauza (lokal-only).
+**Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18); **Faza AI-2.H TAM (H1-H5)**; **AI-2.5 IN_PROGRESS (5.1 ✅)**
+**Cari task:** **AI-2.5.2** Sync dispatcher (outbox event → channel adapter routing, per-channel retry/rate-limit/circuit-breaker)
+**Son commit:** `bdf0bb0` — docs: Q-001 PASSED (operator smoke canlı) + Q-002 GitHub CI billing (HUMAN-ONLY)
+**Son uğurlu verify:** 2026-06-04; AI-2.5.1 TAM (477 test, libs/adapter coverage 94.3%, suite mənim hissəsində təmiz)
+**Vəziyyət:** AI-2 IN_PROGRESS (2.1–2.4 ✅; **AI-2.H1-H5 ✅ TAM**; **AI-2.5.1 ✅ adapter contract**). Növbəti AI-2.5 dilimi: sync dispatcher. GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (Q-002, operator), push pauza (lokal-only).
 
 ---
 
@@ -91,6 +91,24 @@ həll olundu**, AI-2.5 təmizlənmiş təməl üstündə qurula bilər.
 - [x] **AI-2.H5 🟡 Sync model enabler** ✅ — 2026-06-04 (ADR-0018). migration **0011**: `warehouses.is_online_sellable` (default true — mövcud anbarlar onlayn sayılır), `products.online_published` (default **false** — explicit opt-in, inadvertent push qarşısı), yeni iki cədvəl `channels` (UNIQUE tenant_id+code) və `channel_listings` (UNIQUE channel_id+variant_id, partial UNIQUE channel_id+external_listing_id non-NULL) — RLS FORCE + posnet_app grant. **Canonical mapper** ([sync/canonical.py](services/core/app/sync/canonical.py)): pure helper-lər (`aggregate_online_stock`, `to_canonical_inventory/price/product`) + orchestrator `build_canonical_product(session, variant_id, at)` — Variant+Product oxu, `online_published=false` → None, `is_online_sellable=true` anbarları aqreqasiya, `resolve_price`, ImageURL-lar (sort_order), `CanonicalProduct` qaytarır. `stock_qty=max(qty-reserved, 0)` — kanal heç vaxt mənfi görmür (canonical anti-oversell qatı). 29 yeni test (13 unit pure helper + 16 integration: schema default-ları, channel uniqueness, RLS isolation, mapper happy/edge path-lar, migration sanity) → suite **443 @ 99.88%**. *(audit B2, B3, B4, B6)*
 
 **Hardening sonrası → AI-2.5** adapter framework + 1 kanal (mock-marketplace → real) təmizlənmiş təməl üstündə.
+
+---
+
+## Faza AI-2.5 — ADAPTER FRAMEWORK + 1 KANAL (★ HUB NÜVƏSİ, ADR-0012 §17)
+
+**Məqsəd:** "Merchant məhsulunu kanala çıxarır, online satılır, sifariş POS-a düşür, stok hər yerdə azalır." Crown jewel — məhsul tezisini sübut edir.
+
+**Dilimlər (incremental, hər biri öz commit-i ilə):**
+- [x] **AI-2.5.1** ✅ — 2026-06-04. **Adapter contract** ([libs/adapter](libs/adapter)): `ChannelAdapter` Protocol (push_listing/push_stock/push_price/pull_orders/acknowledge_order/map_category) · `AdapterCapabilities` dataclass (code, auth_kind, supports_*, rate_limit_rps/burst, tags) · 4-tier error hierarchy (`AdapterError` → Retryable/RateLimit, Auth/Permanent — sync engine retry/DLQ classifier) · process-wide registry (`register_adapter/get_adapter/list_adapters/clear_registry`, code-mismatch + collision detection) · `ChannelListingResult` frozen dataclass. 34 yeni unit test → suite **477**. *(roadmap §17.2)*
+- [ ] **AI-2.5.2** Sync dispatcher — outbox event → adapter operation routing; `channel_listings`-dən external_listing_id resolve; per-channel token-bucket rate-limit; retry (exp backoff) + pybreaker circuit breaker + DLQ. *(roadmap §17.3 outbound)*
+- [ ] **AI-2.5.3** Mock marketplace + ilk konkret adapter — `mocks/mock-marketplace` real FastAPI (in-memory store, HMAC, realistik latency / occasional 5xx) + `MockMarketplaceAdapter` (libs/adapter Protocol satışı) + contract test template (`tests/contract/adapter_contract.py` — registry + capabilities + idempotency invariant). *(§17.5)*
+- [ ] **AI-2.5.4** Webhook ingress — `POST /v1/channels/{code}/webhook` (HMAC verify) → eventbus → adapter.normalize → `CanonicalOrder` → Order context → POS stok decrement (reservation → out) → `acknowledge_order`. *(§17.3 inbound)*
+- [ ] **AI-2.5.5** E2E MVP — POS məhsul → push_listing → mock görür → stok/qiymət dəyiş push → mock sifariş webhook → POS stok azalır → ack. **0 oversell**. *(§17.6)*
+- [ ] **AI-2.5.6** Reconciliation cron + OTel observability — kanal stoku vs POS drift təpib + təmir; sync metrik (lag, push success rate, DLQ depth). *(§17.4)*
+
+**Gate (AI-2.5 done):** adapter kontraktı + mock contract test 100% · E2E dilim idempotent **0 oversell** · reconciliation drift təmir · rate-limit + retry + DLQ test · OTel sync metrik · swap-ready (real adapter eyni kontrakt).
+
+---
 
 ## Faza AI-2 — POS CORE / online qat (2.1–2.4 ✅ + AI-2.H ✅; sale = AI-2.5-ə köçdü)
 
