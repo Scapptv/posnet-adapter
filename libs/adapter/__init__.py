@@ -31,7 +31,7 @@ from .errors import (
     AdapterRetryableError,
 )
 from .hmac_verify import verify_signature
-from .protocol import ChannelAdapter, ChannelListingResult
+from .protocol import ChannelAdapter, ChannelListingResult, ChannelListingSnapshot
 from .rate_limit import RateLimitTimeoutError, TokenBucket
 from .registry import (
     AdapterAlreadyRegisteredError,
@@ -54,6 +54,7 @@ __all__ = [
     "AuthKind",
     "ChannelAdapter",
     "ChannelListingResult",
+    "ChannelListingSnapshot",
     "CircuitBreaker",
     "CircuitBreakerOpenError",
     "RateLimitTimeoutError",

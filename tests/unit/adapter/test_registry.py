@@ -13,6 +13,7 @@ from libs.adapter import (
     AdapterCapabilities,
     AdapterNotFoundError,
     ChannelListingResult,
+    ChannelListingSnapshot,
     clear_registry,
     get_adapter,
     list_adapters,
@@ -57,6 +58,9 @@ def _make_adapter(code: str, name: str = "X") -> type:
 
         def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
             raise NotImplementedError
+
+        async def fetch_listing(self, *, sku: str) -> ChannelListingSnapshot | None:
+            return None
 
     _Adapter.__name__ = f"{name}Adapter"
     return _Adapter

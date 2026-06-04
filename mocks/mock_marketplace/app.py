@@ -16,6 +16,7 @@ from fastapi.requests import Request
 from .models import (
     AcknowledgeRequest,
     ListingCreate,
+    ListingDetailResponse,
     ListingResponse,
     OrderDTO,
     OrderSeedRequest,
@@ -83,6 +84,22 @@ async def update_price(seller_sku: str, body: PriceUpdate, store: StoreDep) -> L
         external_listing_id=listing.external_id,
         seller_sku=listing.seller_sku,
         status=listing.status,  # type: ignore[arg-type]
+    )
+
+
+@router.get("/listings/{seller_sku}", response_model=ListingDetailResponse)
+async def get_listing(seller_sku: str, store: StoreDep) -> ListingDetailResponse:
+    """Channel-side read for reconciliation (AI-2.5.6): current stock + price."""
+    listing = store.listing_by_sku(seller_sku)
+    if listing is None:
+        raise HTTPException(status_code=404, detail="unknown seller_sku")
+    return ListingDetailResponse(
+        external_listing_id=listing.external_id,
+        seller_sku=listing.seller_sku,
+        status=listing.status,  # type: ignore[arg-type]
+        stock=listing.stock,
+        price_minor=listing.price_minor,
+        currency=listing.currency,
     )
 
 

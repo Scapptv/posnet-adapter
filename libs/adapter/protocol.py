@@ -57,6 +57,36 @@ class ChannelListingResult:
     Mirrors ``channel_listings.status``."""
 
 
+@dataclass(frozen=True, slots=True)
+class ChannelListingSnapshot:
+    """The channel's *current* view of a listing — what reconciliation reads to
+    compare against POS (AI-2.5.6).
+
+    ``fetch_listing`` returns this so the reconciliation job can detect drift
+    (channel ``stock`` != POS available) and repair it with a fresh
+    ``push_stock``. ``None`` from ``fetch_listing`` means the SKU isn't listed
+    on the channel at all.
+    """
+
+    sku: str
+    """The canonical SKU this snapshot is for."""
+
+    stock: int
+    """The channel's current sellable stock for the listing."""
+
+    price_minor: int
+    """The channel's current price, in minor units."""
+
+    currency: str
+    """ISO-4217 currency of ``price_minor``."""
+
+    external_listing_id: str
+    """The channel's identifier for the listing."""
+
+    status: str = "active"
+    """Channel-side lifecycle: ``"active"`` | ``"pending"`` | ``"rejected"``."""
+
+
 @runtime_checkable
 class ChannelAdapter(Protocol):
     """The one Protocol every channel adapter implements.
@@ -127,5 +157,16 @@ class ChannelAdapter(Protocol):
         ingests via :meth:`pull_orders` instead may raise ``NotImplementedError``
         — the webhook endpoint checks ``capabilities.supports_webhook_orders``
         before calling.
+        """
+        ...
+
+    async def fetch_listing(self, *, sku: str) -> ChannelListingSnapshot | None:
+        """Read the channel's current state for ``sku`` (stock, price, status).
+
+        Reconciliation (AI-2.5.6) calls this to detect drift between the
+        channel and POS, then repairs with a fresh ``push_stock``. Returns
+        ``None`` if ``sku`` isn't listed on the channel. Only called when
+        ``capabilities.supports_fetch_listing`` is true; push-only adapters
+        may raise ``NotImplementedError``.
         """
         ...

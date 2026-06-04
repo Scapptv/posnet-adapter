@@ -29,6 +29,7 @@ from libs.adapter import (
     AdapterRateLimitError,
     AdapterRetryableError,
     ChannelListingResult,
+    ChannelListingSnapshot,
 )
 from libs.canonical_model import (
     CanonicalCustomer,
@@ -61,6 +62,7 @@ class MockMarketplaceAdapter:
         supports_push_listing=True,
         supports_push_stock=True,
         supports_push_price=True,
+        supports_fetch_listing=True,
         supports_pull_orders=True,
         supports_webhook_orders=True,
         webhook_signature_header="X-Mock-Signature",
@@ -121,6 +123,24 @@ class MockMarketplaceAdapter:
             json={"price_minor": price.price_minor, "currency": price.currency},
         )
 
+    async def fetch_listing(self, *, sku: str) -> ChannelListingSnapshot | None:
+        """Read the channel's current listing state for reconciliation. A 404
+        means the SKU isn't listed here (returns ``None``); other non-2xx codes
+        classify into the usual ``AdapterError`` hierarchy."""
+        response = await self._send("GET", f"/listings/{sku}")
+        if response.status_code == 404:
+            return None
+        self._raise_for_status(response)
+        data = response.json()
+        return ChannelListingSnapshot(
+            sku=str(data["seller_sku"]),
+            stock=int(data["stock"]),
+            price_minor=int(data["price_minor"]),
+            currency=str(data["currency"]),
+            external_listing_id=str(data["external_listing_id"]),
+            status=str(data["status"]),
+        )
+
     # ----------------------------------------------------------------
     # Inbound — pull / ack
     # ----------------------------------------------------------------
@@ -159,14 +179,16 @@ class MockMarketplaceAdapter:
     # Internals — HTTP wrapper + error classification
     # ----------------------------------------------------------------
 
-    async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+    async def _send(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         try:
-            response = await self._client.request(method, path, **kwargs)
+            return await self._client.request(method, path, **kwargs)
         except httpx.TimeoutException as exc:
             raise AdapterRetryableError(f"timeout: {exc}") from exc
         except httpx.TransportError as exc:
             raise AdapterRetryableError(f"transport: {exc}") from exc
 
+    @staticmethod
+    def _raise_for_status(response: httpx.Response) -> None:
         if response.status_code >= 500:
             raise AdapterRetryableError(f"channel {response.status_code}: {response.text[:200]}")
         if response.status_code == 429:
@@ -179,6 +201,10 @@ class MockMarketplaceAdapter:
             raise AdapterAuthError(f"channel rejected credentials: {response.text[:200]}")
         if response.status_code >= 400:
             raise AdapterPermanentError(f"channel {response.status_code}: {response.text[:200]}")
+
+    async def _request(self, method: str, path: str, **kwargs: Any) -> Any:
+        response = await self._send(method, path, **kwargs)
+        self._raise_for_status(response)
         return response.json()
 
     @staticmethod

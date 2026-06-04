@@ -26,6 +26,7 @@ from libs.adapter import (
     AdapterCapabilities,
     ChannelAdapter,
     ChannelListingResult,
+    ChannelListingSnapshot,
 )
 from libs.canonical_model import CanonicalPrice, CanonicalProduct
 
@@ -116,6 +117,31 @@ class AdapterContractTests:
         await adapter.push_listing([a_product])
         result = await adapter.push_price(sku=a_product.sku, price=a_resolved_price)
         assert result is None
+
+    # ----------------------------------------------------------------
+    # Fetch (reconciliation read) — only for adapters that support it
+    # ----------------------------------------------------------------
+
+    async def test_fetch_listing_reads_back_pushed_stock(
+        self, adapter: ChannelAdapter, a_product: CanonicalProduct
+    ) -> None:
+        """A listing that was just pushed reads back with a matching SKU and the
+        stock that was pushed — the input reconciliation compares against POS."""
+        if not adapter.capabilities.supports_fetch_listing:
+            pytest.skip("adapter does not support fetch_listing")
+        await adapter.push_listing([a_product])
+        snapshot = await adapter.fetch_listing(sku=a_product.sku)
+        assert isinstance(snapshot, ChannelListingSnapshot)
+        assert snapshot.sku == a_product.sku
+        assert snapshot.stock == a_product.stock_qty
+        assert snapshot.external_listing_id  # non-empty
+
+    async def test_fetch_listing_unknown_sku_returns_none(self, adapter: ChannelAdapter) -> None:
+        """A SKU the channel never listed reads back as ``None`` (not an error)
+        — reconciliation treats it as "not listed here"."""
+        if not adapter.capabilities.supports_fetch_listing:
+            pytest.skip("adapter does not support fetch_listing")
+        assert await adapter.fetch_listing(sku="NO-SUCH-SKU-EVER") is None
 
     # ----------------------------------------------------------------
     # Mapping

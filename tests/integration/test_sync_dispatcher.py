@@ -37,6 +37,7 @@ from libs.adapter import (
     AdapterPermanentError,
     AdapterRetryableError,
     ChannelListingResult,
+    ChannelListingSnapshot,
 )
 from libs.canonical_model import CanonicalOrder, CanonicalPrice, CanonicalProduct
 from libs.eventbus import Event
@@ -108,6 +109,9 @@ class RecordingAdapter:
         return "/".join(canonical_category)
 
     def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
+        raise NotImplementedError
+
+    async def fetch_listing(self, *, sku: str) -> ChannelListingSnapshot | None:
         raise NotImplementedError
 
 

@@ -225,6 +225,18 @@ async def test_400_maps_to_permanent() -> None:
         await adapter.aclose()
 
 
+@pytest.mark.integration
+async def test_fetch_listing_5xx_maps_to_retryable() -> None:
+    """fetch_listing classifies non-404 errors like every other call — only a
+    404 is special (→ ``None``)."""
+    adapter = _adapter_with_transport(_FakeTransport(503))
+    try:
+        with pytest.raises(AdapterRetryableError):
+            await adapter.fetch_listing(sku="X")
+    finally:
+        await adapter.aclose()
+
+
 class _RaisingTransport(httpx.AsyncBaseTransport):
     def __init__(self, exc: Exception) -> None:
         self._exc = exc

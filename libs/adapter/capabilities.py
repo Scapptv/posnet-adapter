@@ -50,6 +50,11 @@ class AdapterCapabilities:
     supports_push_price: bool = True
     """Adapter can update a listing's price."""
 
+    supports_fetch_listing: bool = False
+    """Adapter can read a listing's current channel-side state
+    (``fetch_listing``). Reconciliation (AI-2.5.6) needs it to detect drift;
+    push-only channels leave it False."""
+
     supports_pull_orders: bool = False
     """Adapter polls the channel for new orders (``pull_orders``)."""
 

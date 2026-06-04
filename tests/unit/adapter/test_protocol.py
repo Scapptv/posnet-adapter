@@ -13,7 +13,12 @@ from typing import ClassVar
 
 import pytest
 
-from libs.adapter import AdapterCapabilities, ChannelAdapter, ChannelListingResult
+from libs.adapter import (
+    AdapterCapabilities,
+    ChannelAdapter,
+    ChannelListingResult,
+    ChannelListingSnapshot,
+)
 from libs.canonical_model import CanonicalOrder, CanonicalPrice, CanonicalProduct
 
 
@@ -46,6 +51,9 @@ class _Complete:
 
     def normalize_webhook(self, *, body: bytes, headers: Mapping[str, str]) -> CanonicalOrder:
         raise NotImplementedError
+
+    async def fetch_listing(self, *, sku: str) -> ChannelListingSnapshot | None:
+        return None
 
 
 class _MissingPushStock:

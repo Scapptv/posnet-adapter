@@ -36,6 +36,18 @@ class ListingResponse(BaseModel):
     status: Literal["active", "pending", "rejected"]
 
 
+class ListingDetailResponse(BaseModel):
+    """Full channel-side view of a listing — what ``GET /listings/{sku}``
+    returns so reconciliation can read current stock/price (AI-2.5.6)."""
+
+    external_listing_id: str
+    seller_sku: str
+    status: Literal["active", "pending", "rejected"]
+    stock: int
+    price_minor: int
+    currency: str
+
+
 class StockUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
