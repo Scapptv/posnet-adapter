@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { clearToken, getToken } from './api';
+import { Channels } from './Channels';
 import { Login } from './Login';
 import { Products } from './Products';
 import { Warehouses } from './Warehouses';
 
-type Tab = 'products' | 'warehouses';
+type Tab = 'products' | 'warehouses' | 'channels';
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'products', label: 'Məhsullar' },
+  { id: 'warehouses', label: 'Anbarlar' },
+  { id: 'channels', label: 'Kanallar' },
+];
 
 export function App() {
   const [authed, setAuthed] = useState(() => getToken() !== null);
@@ -22,21 +29,25 @@ export function App() {
       <header>
         <strong>Posnet Admin</strong>
         <nav>
-          <button className={tab === 'products' ? 'tab on' : 'tab'} onClick={() => setTab('products')}>
-            Məhsullar
-          </button>
-          <button
-            className={tab === 'warehouses' ? 'tab on' : 'tab'}
-            onClick={() => setTab('warehouses')}
-          >
-            Anbarlar
-          </button>
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              className={tab === t.id ? 'tab on' : 'tab'}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
         </nav>
         <button className="logout" onClick={logout}>
           Çıxış
         </button>
       </header>
-      <main>{tab === 'products' ? <Products /> : <Warehouses />}</main>
+      <main>
+        {tab === 'products' && <Products />}
+        {tab === 'warehouses' && <Warehouses />}
+        {tab === 'channels' && <Channels />}
+      </main>
     </div>
   );
 }

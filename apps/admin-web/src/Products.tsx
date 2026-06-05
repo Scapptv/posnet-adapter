@@ -137,11 +137,31 @@ function Detail({ productId }: { productId: string }) {
     }
   }
 
+  async function togglePublish() {
+    if (!detail) return;
+    setError(null);
+    try {
+      if (detail.online_published) await api.unpublish(productId);
+      else await api.publish(productId);
+      await reload();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail : 'publish xətası');
+    }
+  }
+
   if (!detail) return <p className="muted">yüklənir…</p>;
 
   return (
     <div className="card">
-      <h3>{detail.name}</h3>
+      <div className="variant-head" style={{ padding: 0 }}>
+        <h3 style={{ margin: 0, flex: 1 }}>{detail.name}</h3>
+        <button
+          className={detail.online_published ? '' : 'tab'}
+          onClick={() => void togglePublish()}
+        >
+          {detail.online_published ? '✓ Onlayn — geri çək' : 'Kanala çıxar'}
+        </button>
+      </div>
       {error && <p className="error">{error}</p>}
       {detail.variants.map((v) => (
         <VariantRow key={v.id} variant={v} currency={detail.currency} />

@@ -92,6 +92,7 @@ export interface Product {
   currency: string;
   status: string;
   store_id: string | null;
+  online_published: boolean;
 }
 
 export interface Variant {
@@ -126,6 +127,23 @@ export interface InventoryLevel {
   available: number;
 }
 
+export interface Channel {
+  id: string;
+  code: string;
+  name: string;
+  status: string;
+}
+
+export interface ChannelListing {
+  channel_id: string;
+  channel_code: string;
+  variant_id: string;
+  sku: string;
+  external_listing_id: string | null;
+  status: string;
+  last_synced_at: string | null;
+}
+
 export const MOVEMENT_KINDS = ['in', 'out', 'reserve', 'unreserve', 'adjust'] as const;
 export type MovementKind = (typeof MOVEMENT_KINDS)[number];
 
@@ -142,6 +160,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  publish: (id: string) => apiFetch<Product>(`/v1/products/${id}/publish`, { method: 'POST' }),
+  unpublish: (id: string) => apiFetch<Product>(`/v1/products/${id}/unpublish`, { method: 'POST' }),
 
   listWarehouses: () => apiFetch<Warehouse[]>('/v1/warehouses'),
   createWarehouse: (body: { name: string; type: string }) =>
@@ -155,4 +175,7 @@ export const api = {
     qty: number;
     reference?: string;
   }) => apiFetch<InventoryLevel>('/v1/inventory/movements', { method: 'POST', body: JSON.stringify(body) }),
+
+  listChannels: () => apiFetch<Channel[]>('/v1/channels'),
+  listChannelListings: () => apiFetch<ChannelListing[]>('/v1/channel-listings'),
 };
