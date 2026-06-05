@@ -18,6 +18,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from libs.canonical_model import CanonicalProduct
@@ -25,6 +26,7 @@ from libs.pos_source import PosSourceAdapter
 
 from ..domain.catalog import add_variant, create_product, find_variant_by_sku
 from ..domain.inventory import apply_movement, get_inventory
+from ..infrastructure.db.models import Warehouse
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +85,38 @@ async def sync_catalog_from_pos(
 
     return PosSyncReport(
         pulled=len(products), created=created, updated=updated, restocked=restocked
+    )
+
+
+async def sync_tenant_catalog_from_pos(
+    session: AsyncSession, *, tenant_id: UUID, source: PosSourceAdapter
+) -> PosSyncReport | None:
+    """Sync one tenant's POS catalog into the hub — the ``make pos-sync`` cron unit.
+
+    Mirrors POS stock into the tenant's primary online-sellable warehouse (lowest
+    id) and returns the sync report, or ``None`` when the tenant has no
+    online-sellable warehouse yet (nothing to mirror into). Single-warehouse
+    mirror is the mock-first simplification: the POS reports one stock figure per
+    product, so the hub holds it in one place; per-location mapping lands with the
+    real Posnet interface (multi-store stock).
+
+    Runs under the caller's tenant RLS scope, like :func:`sync_catalog_from_pos`.
+    """
+    warehouse_id = (
+        await session.execute(
+            select(Warehouse.id)
+            .where(
+                Warehouse.tenant_id == tenant_id,
+                Warehouse.is_online_sellable.is_(True),
+            )
+            .order_by(Warehouse.id)
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if warehouse_id is None:
+        return None
+    return await sync_catalog_from_pos(
+        session, tenant_id=tenant_id, source=source, warehouse_id=warehouse_id
     )
 
 

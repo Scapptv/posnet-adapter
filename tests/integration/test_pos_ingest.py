@@ -21,7 +21,10 @@ from services.core.app.domain.catalog import add_variant, create_product, find_v
 from services.core.app.domain.inventory import apply_movement, create_warehouse, get_inventory
 from services.core.app.domain.onboarding import onboard_tenant
 from services.core.app.infrastructure.db.tenant import apply_tenant_scope
-from services.core.app.sync.pos_ingest import sync_catalog_from_pos
+from services.core.app.sync.pos_ingest import (
+    sync_catalog_from_pos,
+    sync_tenant_catalog_from_pos,
+)
 
 
 async def _seed_tenant(
@@ -172,3 +175,70 @@ async def test_sync_is_idempotent(
     assert second.created == 0
     assert second.updated == 1  # matched the existing variant
     assert second.restocked == 0
+
+
+# ----------------------------------------------------------------
+# Tenant wrapper (the make pos-sync cron unit) — warehouse resolution
+# ----------------------------------------------------------------
+
+
+@pytest.mark.integration
+async def test_sync_tenant_mirrors_into_online_warehouse(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """The cron wrapper resolves the tenant's online-sellable warehouse itself
+    and mirrors POS stock into it."""
+    tenant_id = await _seed_tenant(async_session_factory, subject="pos-t", email="pos-t@t.az")
+    warehouse_id = await _warehouse(async_session_factory, tenant_id)
+    source = MockPosnetSource()
+    source.seed(_product("TEN-1", price=300, stock=7))
+
+    async with _scoped(async_session_factory, tenant_id) as session:
+        report = await sync_tenant_catalog_from_pos(session, tenant_id=tenant_id, source=source)
+
+    assert report is not None
+    assert report.pulled == 1 and report.created == 1 and report.restocked == 1
+    async with _scoped(async_session_factory, tenant_id) as session:
+        v = await find_variant_by_sku(session, "TEN-1")
+        assert v is not None
+        assert await _stock_of(session, v.id, warehouse_id) == 7
+
+
+@pytest.mark.integration
+async def test_sync_tenant_without_warehouse_returns_none(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """A tenant with no online-sellable warehouse has nowhere to mirror stock —
+    the wrapper returns None (the cron logs + skips) instead of failing."""
+    tenant_id = await _seed_tenant(async_session_factory, subject="pos-nw", email="pos-nw@t.az")
+    source = MockPosnetSource()
+    source.seed(_product("NW-1", price=100, stock=3))
+
+    async with _scoped(async_session_factory, tenant_id) as session:
+        report = await sync_tenant_catalog_from_pos(session, tenant_id=tenant_id, source=source)
+
+    assert report is None
+
+
+@pytest.mark.integration
+async def test_sync_zero_stock_product_creates_variant_without_movement(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """A POS product reporting 0 stock is created in the hub but applies no
+    inventory movement — there's nothing to mirror, so no first-create row."""
+    tenant_id = await _seed_tenant(async_session_factory, subject="pos-z", email="pos-z@t.az")
+    warehouse_id = await _warehouse(async_session_factory, tenant_id)
+    source = MockPosnetSource()
+    source.seed(_product("ZERO", price=200, stock=0))
+
+    async with _scoped(async_session_factory, tenant_id) as session:
+        report = await sync_catalog_from_pos(
+            session, tenant_id=tenant_id, source=source, warehouse_id=warehouse_id
+        )
+
+    assert report.created == 1
+    assert report.restocked == 0  # 0 stock → no movement applied
+    async with _scoped(async_session_factory, tenant_id) as session:
+        v = await find_variant_by_sku(session, "ZERO")
+        assert v is not None
+        assert await _stock_of(session, v.id, warehouse_id) == 0

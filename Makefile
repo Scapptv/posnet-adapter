@@ -162,6 +162,10 @@ backup: ## DB backup (pg_dump → local + opsional MinIO/S3)
 reconcile: ## Kanal stok/qiymət reconciliation (drift təpib + təmir; cron entrypoint)
 	$(PYTHON) scripts/reconcile_channel_stock.py
 
+.PHONY: pos-sync
+pos-sync: ## Posnet → hub katalog dövri sync (pull; cron entrypoint; POSNET_BASE_URL boş → no-op)
+	$(PYTHON) scripts/sync_pos_catalog.py
+
 # ---- Smoke / Load ----
 .PHONY: smoke
 smoke: ## Faza-spesifik smoke test
