@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Sequence
 from typing import cast
+from uuid import UUID
 
 import httpx
 import orjson
@@ -29,7 +30,10 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-from libs.adapter import ChannelAdapter
+from libs.adapter import AdapterRetryableError, ChannelAdapter
+from libs.canonical_model import CanonicalOrder, CanonicalProduct
+from libs.pos_source import PosSourceAdapter, PosSourceCapabilities
+from mocks.mock_posnet import MockPosnetSource
 from services.core.app.adapters.mock_marketplace import (
     MockMarketplaceAdapter,
     MockMarketplaceConfig,
@@ -334,3 +338,150 @@ def test_factory_not_wired_is_503(
             headers={"X-Mock-Signature": _sign(_webhook_body())},
         )
     assert response.status_code == 503
+
+
+# ----------------------------------------------------------------
+# AI-2.8.3 — POS write-back (a reserved order is pushed back into Posnet)
+# ----------------------------------------------------------------
+
+
+def _pos_factory(pos: PosSourceAdapter) -> Callable[[UUID], PosSourceAdapter]:
+    """A pos_source_factory that hands the same POS connector to every tenant."""
+
+    def _factory(_tenant_id: UUID) -> PosSourceAdapter:
+        return pos
+
+    return _factory
+
+
+class _FailingPos:
+    """A POS whose write-back always fails — proves best-effort isolation
+    (a POS hiccup must not fail the webhook or undo the reservation)."""
+
+    capabilities = PosSourceCapabilities(
+        code="posnet", name="Posnet", supports_pull_catalog=True, supports_push_order=True
+    )
+
+    async def pull_catalog(self) -> Sequence[CanonicalProduct]:  # pragma: no cover - unused
+        return []
+
+    async def push_order(self, order: CanonicalOrder) -> None:
+        raise AdapterRetryableError("posnet unavailable")
+
+
+class _ReadOnlyPos:
+    """A POS that can't accept order write-back (capability off)."""
+
+    capabilities = PosSourceCapabilities(
+        code="posnet",
+        name="Posnet (read-only)",
+        supports_pull_catalog=True,
+        supports_push_order=False,
+    )
+
+    def __init__(self) -> None:
+        self.pushed: list[CanonicalOrder] = []
+
+    async def pull_catalog(self) -> Sequence[CanonicalProduct]:  # pragma: no cover - unused
+        return []
+
+    async def push_order(self, order: CanonicalOrder) -> None:  # pragma: no cover - gated off
+        self.pushed.append(order)
+
+
+def _post_order(client: TestClient, tenant_id: str, body: bytes) -> httpx.Response:
+    return client.post(
+        f"/v1/channels/{tenant_id}/mock-marketplace/webhook",
+        content=body,
+        headers={"X-Mock-Signature": _sign(body), "content-type": "application/json"},
+    )
+
+
+@pytest.mark.integration
+def test_reserved_order_is_written_back_to_pos(app_with_factory: TestClient, pg_dsn: str) -> None:
+    """The crown-jewel tail (§17.7): a marketplace order that reserves stock is
+    pushed into the POS (Posnet) — the source of truth — as a canonical order."""
+    tenant_id, _ = _seed_channel(pg_dsn)
+    _seed_sellable(pg_dsn, tenant_id, sku="ABC", qty=10)
+    pos = MockPosnetSource()
+    app_with_factory.app.state.pos_source_factory = _pos_factory(pos)
+
+    response = _post_order(app_with_factory, tenant_id, _webhook_body())
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "reserved"
+    assert len(pos.pushed_orders) == 1
+    written = pos.pushed_orders[0]
+    assert written.channel_order_id == "MOCK-ORD-001"
+    assert written.lines[0].sku == "ABC"
+    assert written.lines[0].qty == 2
+
+
+@pytest.mark.integration
+def test_rejected_order_is_not_written_back_to_pos(
+    app_with_factory: TestClient, pg_dsn: str
+) -> None:
+    """A rejected order reserved nothing — there's no sale to record in the POS."""
+    tenant_id, _ = _seed_channel(pg_dsn)
+    _seed_sellable(pg_dsn, tenant_id, sku="ABC", qty=1)  # order wants 2 -> oversold
+    pos = MockPosnetSource()
+    app_with_factory.app.state.pos_source_factory = _pos_factory(pos)
+
+    response = _post_order(app_with_factory, tenant_id, _webhook_body())
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+    assert pos.pushed_orders == []
+
+
+@pytest.mark.integration
+def test_pos_write_back_failure_does_not_fail_webhook(
+    app_with_factory: TestClient, pg_dsn: str
+) -> None:
+    """A POS write-back failure is best-effort: the webhook still succeeds and
+    the reservation stays durable (reconciliation/retry catches the miss)."""
+    tenant_id, _ = _seed_channel(pg_dsn)
+    _seed_sellable(pg_dsn, tenant_id, sku="ABC", qty=10)
+    app_with_factory.app.state.pos_source_factory = _pos_factory(_FailingPos())
+
+    response = _post_order(app_with_factory, tenant_id, _webhook_body())
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "reserved"
+    assert _reserved_qty(pg_dsn, "ABC") == 2  # durable despite the POS failure
+
+
+@pytest.mark.integration
+def test_read_only_pos_is_skipped(app_with_factory: TestClient, pg_dsn: str) -> None:
+    """A POS that doesn't support order write-back (capability off) is skipped —
+    push_order is never called."""
+    tenant_id, _ = _seed_channel(pg_dsn)
+    _seed_sellable(pg_dsn, tenant_id, sku="ABC", qty=10)
+    pos = _ReadOnlyPos()
+    app_with_factory.app.state.pos_source_factory = _pos_factory(pos)
+
+    response = _post_order(app_with_factory, tenant_id, _webhook_body())
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "reserved"
+    assert pos.pushed == []
+
+
+@pytest.mark.integration
+def test_pos_write_back_not_duplicated_on_redelivery(
+    app_with_factory: TestClient, pg_dsn: str
+) -> None:
+    """A redelivered webhook short-circuits to ``duplicate`` before reserving —
+    so the POS is written exactly once, never twice."""
+    tenant_id, _ = _seed_channel(pg_dsn)
+    _seed_sellable(pg_dsn, tenant_id, sku="ABC", qty=10)
+    pos = MockPosnetSource()
+    app_with_factory.app.state.pos_source_factory = _pos_factory(pos)
+    body = _webhook_body("MOCK-ORD-PUSH-DUP")
+
+    first = _post_order(app_with_factory, tenant_id, body)
+    second = _post_order(app_with_factory, tenant_id, body)
+
+    assert first.json()["status"] == "reserved"
+    assert second.json()["status"] == "duplicate"
+    assert len(pos.pushed_orders) == 1

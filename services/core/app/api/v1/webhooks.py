@@ -36,6 +36,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from libs.adapter import AdapterError, AdapterPermanentError, verify_signature
+from libs.canonical_model import CanonicalOrder
 
 from ...infrastructure.db.models import Channel
 from ...sync.observability import sync_span
@@ -44,6 +45,38 @@ from ...sync.order_ingest import ingest_channel_order
 _log = logging.getLogger(__name__)
 
 router = APIRouter(tags=["webhooks"])
+
+
+async def _write_order_to_pos(
+    request: Request, *, tenant_id: UUID, order: CanonicalOrder, channel_code: str
+) -> None:
+    """Best-effort: write a reserved channel order back into the POS (Posnet),
+    the source of truth (AI-2.8.3, §17.7 — the tail of the inbound flow).
+
+    The reservation is already durable; a POS hiccup must not undo it, so a
+    failure is logged and left for reconciliation/retry — exactly like a failed
+    channel ack. Skipped when no POS is wired (``pos_source_factory`` unset, or
+    the tenant has no connector) or the POS is read-only.
+    """
+    factory = getattr(request.app.state, "pos_source_factory", None)
+    if factory is None:
+        return
+    pos_source = factory(tenant_id)
+    if pos_source is None or not pos_source.capabilities.supports_push_order:
+        return
+    try:
+        with sync_span("pos.push_order", channel_code=channel_code):
+            await pos_source.push_order(order)
+    except (AdapterError, NotImplementedError) as exc:
+        _log.warning(
+            "pos_write_back_failed",
+            extra={
+                "tenant_id": str(tenant_id),
+                "channel_code": channel_code,
+                "channel_order_id": order.channel_order_id,
+                "error_type": type(exc).__name__,
+            },
+        )
 
 
 @router.post(
@@ -110,8 +143,14 @@ async def receive_webhook(
             )
             span.set_attribute("status", outcome.status)
 
-    # Transaction committed: the order (and any reservations) are durable. Now
-    # tell the channel — best-effort, so a channel-side hiccup can't undo a
+    # Transaction committed: the order (and any reservations) are durable.
+    # AI-2.8.3 (§17.7): record a reserved order back into the POS (Posnet) — the
+    # source of truth — so its stock/sales reflect the marketplace sale. Like
+    # the ack below: best-effort + post-commit, reconciled on failure.
+    if outcome.status == "reserved":
+        await _write_order_to_pos(request, tenant_id=tenant_id, order=canonical, channel_code=code)
+
+    # Now tell the channel — best-effort, so a channel-side hiccup can't undo a
     # safely-persisted order. Reconciliation (AI-2.5.6) sweeps up missed acks.
     if outcome.ack_status is not None:
         try:

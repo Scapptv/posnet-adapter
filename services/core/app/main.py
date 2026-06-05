@@ -40,6 +40,7 @@ from .rate_limit import build_limiter, exempt_routes
 from .security import build_token_verifier
 from .sync.wiring import (
     build_dispatcher,
+    build_pos_source_factory,
     build_webhook_adapter_factory,
     register_builtin_adapters,
 )
@@ -127,6 +128,9 @@ def create_app(
         register_builtin_adapters()
         event_handler = build_dispatcher(settings)
         app.state.webhook_adapter_factory = build_webhook_adapter_factory(settings)
+        # AI-2.8.3 (§17.7): the inbound flow writes a reserved channel order back
+        # into the POS (Posnet). No-op until ``posnet_base_url`` is set.
+        app.state.pos_source_factory = build_pos_source_factory(settings)
     # Every consumer handler runs inside the idempotency wrapper (AI-2.H4, audit
     # B5): at-least-once delivery means a redelivered event_id must short-circuit
     # before the handler's external side effect.

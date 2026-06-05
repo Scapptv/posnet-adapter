@@ -17,12 +17,14 @@ import pytest
 from libs.adapter import AdapterCapabilities, AdapterNotFoundError, clear_registry, get_adapter
 from services.core.app.adapters.mock_marketplace import MockMarketplaceAdapter
 from services.core.app.adapters.mock_marketplace.adapter import CODE as MOCK_CODE
+from services.core.app.adapters.posnet import PosnetConnector
 from services.core.app.config import Settings
 from services.core.app.infrastructure.db.models import Channel
 from services.core.app.main import create_app
 from services.core.app.sync.wiring import (
     build_adapter,
     build_adapter_factory,
+    build_pos_source_factory,
     build_webhook_adapter_factory,
     register_builtin_adapters,
 )
@@ -159,3 +161,40 @@ def test_create_app_injected_handler_skips_wiring() -> None:
 
     app = create_app(_settings(sync_enabled=True), event_handler=_stub_handler)  # type: ignore[arg-type]
     assert getattr(app.state, "webhook_adapter_factory", None) is None
+
+
+# ----------------------------------------------------------------
+# POS source factory (AI-2.8.3)
+# ----------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_build_pos_source_factory_none_when_unset() -> None:
+    """No ``posnet_base_url`` -> POS write-back is a no-op: the factory yields
+    None for every tenant."""
+    factory = build_pos_source_factory(_settings(posnet_base_url=""))
+    assert factory(uuid4()) is None
+
+
+@pytest.mark.unit
+def test_build_pos_source_factory_builds_connector() -> None:
+    factory = build_pos_source_factory(_settings(posnet_base_url="http://posnet:9300"))
+    connector = factory(uuid4())
+    assert isinstance(connector, PosnetConnector)
+    assert connector.capabilities.code == "posnet"
+    assert connector.capabilities.supports_push_order is True
+
+
+@pytest.mark.unit
+def test_create_app_sync_enabled_wires_pos_source_factory() -> None:
+    app = create_app(_settings(sync_enabled=True))
+    factory = getattr(app.state, "pos_source_factory", None)
+    assert factory is not None
+    # Default has no posnet_base_url -> no POS connected yet -> None per tenant.
+    assert factory(uuid4()) is None
+
+
+@pytest.mark.unit
+def test_create_app_sync_disabled_skips_pos_wiring() -> None:
+    app = create_app(_settings(sync_enabled=False))
+    assert getattr(app.state, "pos_source_factory", None) is None
