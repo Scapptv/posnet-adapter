@@ -78,6 +78,12 @@ class AdapterCapabilities:
     channel basis so each channel can use its own convention. Required when
     ``supports_webhook_orders`` is True; ignored otherwise."""
 
+    webhook_timestamp_header: str | None = None
+    """Header the channel uses to convey the signed unix timestamp for replay
+    protection (H1, ADR-0020). When set, the webhook endpoint binds this
+    timestamp into the HMAC and rejects deliveries outside the skew window.
+    ``None`` → body-only signing (legacy, no replay protection)."""
+
     def __post_init__(self) -> None:
         if not self.code:
             raise ValueError("AdapterCapabilities.code must be non-empty")

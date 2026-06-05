@@ -6,7 +6,9 @@ in the same Postgres, that is one local transaction — atomic, with no
 dual-write window: a crash either commits both effects or neither.
 
 ``FOR UPDATE SKIP LOCKED`` lets several relay workers run concurrently without
-publishing a row twice.
+publishing a row twice. Rows drain ``ORDER BY seq`` (a monotonic BIGSERIAL,
+migration 0013) — ``created_at`` is transaction-time and ties for every event
+of one transaction, so seq is what preserves enqueue order (H4, ADR-0020).
 
 Role note: the relay processes *all* tenants' rows, so its DB role must bypass
 the per-tenant RLS on ``outbox_events`` (the table owner, or a dedicated
@@ -36,7 +38,7 @@ _SELECT_BATCH = text(
     SELECT id, tenant_id, event_type, payload, created_at
     FROM outbox_events
     WHERE NOT published
-    ORDER BY created_at
+    ORDER BY seq
     FOR UPDATE SKIP LOCKED
     LIMIT :batch
     """

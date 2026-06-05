@@ -47,8 +47,6 @@ dependencies = [
     # ---- Utilities ----
     "python-dateutil>=2.9.0,<3.0",
     "orjson>=3.9.0,<4.0",
-    "tenacity>=8.2.0,<9.0",
-    "pybreaker>=1.0.0,<2.0",
 ]
 
 [project.optional-dependencies]
@@ -193,7 +191,7 @@ exclude = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["testcontainers.*", "pgmq.*", "hvac.*", "pybreaker.*", "jose.*"]
+module = ["testcontainers.*", "pgmq.*", "hvac.*", "jose.*"]
 ignore_missing_imports = true
 
 # ---------- pytest ----------

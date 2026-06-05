@@ -19,7 +19,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 
 from libs.adapter import AdapterPermanentError, AdapterRetryableError
 from services.core.app.infrastructure.db.models import Channel
-from services.core.app.sync.dispatcher import DispatcherConfig, SyncDispatcher
+from services.core.app.sync.dispatcher import _SKIPPED, DispatcherConfig, SyncDispatcher
 from services.core.app.sync.observability import (
     SYNC_REGISTRY,
     collect_dlq_depth,
@@ -137,7 +137,7 @@ async def test_guard_permanent_records_metric_and_swallows(
 
     result = await dispatcher._guard(channel, _op, "push_price")
 
-    assert result is None  # swallowed
+    assert result is _SKIPPED  # swallowed → sentinel (C2, ADR-0020)
     assert _push_total("obs-perm", "push_price", "permanent") == 1.0
 
 

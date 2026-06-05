@@ -58,6 +58,13 @@ from .observability import observe_sync_lag, record_push, sync_span
 
 _log = logging.getLogger(__name__)
 
+# Sentinel returned by ``_guard`` when the call did NOT complete — breaker open
+# or a swallowed non-retryable error. Distinct from ``None`` (which push_stock /
+# push_price return on *success*), so a caller can tell a real sync from a
+# skipped one and avoid stamping ``last_synced_at`` on a push that never landed
+# (C2, ADR-0020).
+_SKIPPED: Any = object()
+
 
 AdapterFactory = Callable[[Channel], Awaitable[ChannelAdapter]]
 """Resolve a channel record to a configured adapter instance.
@@ -130,13 +137,13 @@ class SyncDispatcher:
         if canonical is None:
             return  # product not online-published — sync engine waits
 
-        for channel in await self._active_channels(session):
+        for channel in await self._active_channels(session, event.tenant_id):
             listing = await self._ensure_listing(
                 session, channel_id=channel.id, variant_id=variant_id, tenant_id=event.tenant_id
             )
             adapter = await self._factory(channel)
             results = await self._guard(channel, adapter.push_listing, "push_listing", [canonical])
-            if results is None:
+            if results is _SKIPPED:
                 continue
             result = next(iter(results), None)
             if result is None:
@@ -151,18 +158,24 @@ class SyncDispatcher:
         new_reserved = int(cast(int, event.payload["new_reserved_qty"]))
         available = max(new_qty - new_reserved, 0)
 
-        sku = await self._sku(session, variant_id)
+        sku = await self._sku(session, variant_id, event.tenant_id)
         if sku is None:
             return
 
-        for listing, channel in await self._active_listings(session, variant_id):
+        for listing, channel in await self._active_listings(session, variant_id, event.tenant_id):
             adapter = await self._factory(channel)
-            await self._guard(channel, adapter.push_stock, "push_stock", sku=sku, qty=available)
-            listing.last_synced_at = self._clock()
+            outcome = await self._guard(
+                channel, adapter.push_stock, "push_stock", sku=sku, qty=available
+            )
+            # Only stamp last_synced_at when the push actually landed — a swallowed
+            # non-retryable failure must leave the listing visibly stale so
+            # reconciliation / monitoring re-syncs it (C2, ADR-0020).
+            if outcome is not _SKIPPED:
+                listing.last_synced_at = self._clock()
 
     async def _on_override_set(self, session: AsyncSession, event: Event) -> None:
         variant_id = UUID(cast(str, event.payload["variant_id"]))
-        sku = await self._sku(session, variant_id)
+        sku = await self._sku(session, variant_id, event.tenant_id)
         if sku is None:
             return
 
@@ -173,30 +186,45 @@ class SyncDispatcher:
             currency=resolved.currency,
         )
 
-        for listing, channel in await self._active_listings(session, variant_id):
+        for listing, channel in await self._active_listings(session, variant_id, event.tenant_id):
             adapter = await self._factory(channel)
-            await self._guard(channel, adapter.push_price, "push_price", sku=sku, price=price)
-            listing.last_synced_at = self._clock()
+            outcome = await self._guard(
+                channel, adapter.push_price, "push_price", sku=sku, price=price
+            )
+            if outcome is not _SKIPPED:  # see _on_movement_applied (C2, ADR-0020)
+                listing.last_synced_at = self._clock()
 
     # ----------------------------------------------------------------
     # Channel lookup helpers
     # ----------------------------------------------------------------
 
-    async def _active_channels(self, session: AsyncSession) -> Sequence[Channel]:
+    async def _active_channels(self, session: AsyncSession, tenant_id: UUID) -> Sequence[Channel]:
+        # Filter by tenant_id EXPLICITLY (C1, ADR-0020): the production Consumer
+        # runs the dispatcher on the RLS-exempt system (superuser) pool, so we
+        # must not lean on app.current_tenant — otherwise one tenant's event
+        # would fan out to every tenant's channels (cross-tenant push).
         return (
-            (await session.execute(select(Channel).where(Channel.status == "active")))
+            (
+                await session.execute(
+                    select(Channel).where(
+                        Channel.tenant_id == tenant_id, Channel.status == "active"
+                    )
+                )
+            )
             .scalars()
             .all()
         )
 
     async def _active_listings(
-        self, session: AsyncSession, variant_id: UUID
+        self, session: AsyncSession, variant_id: UUID, tenant_id: UUID
     ) -> list[tuple[ChannelListing, Channel]]:
+        # Explicit tenant_id filter (C1, ADR-0020) — see _active_channels.
         rows = (
             await session.execute(
                 select(ChannelListing, Channel)
                 .join(Channel, ChannelListing.channel_id == Channel.id)
                 .where(
+                    ChannelListing.tenant_id == tenant_id,
                     ChannelListing.variant_id == variant_id,
                     ChannelListing.status == "active",
                     Channel.status == "active",
@@ -207,9 +235,12 @@ class SyncDispatcher:
         # types them as Row[tuple[...]]; the comprehension narrows.
         return [(listing, channel) for listing, channel in rows]
 
-    async def _sku(self, session: AsyncSession, variant_id: UUID) -> str | None:
+    async def _sku(self, session: AsyncSession, variant_id: UUID, tenant_id: UUID) -> str | None:
+        # Explicit tenant_id filter (C1, ADR-0020) — see _active_channels.
         return (
-            await session.execute(select(Variant.sku).where(Variant.id == variant_id))
+            await session.execute(
+                select(Variant.sku).where(Variant.tenant_id == tenant_id, Variant.id == variant_id)
+            )
         ).scalar_one_or_none()
 
     async def _ensure_listing(
@@ -218,6 +249,7 @@ class SyncDispatcher:
         listing = (
             await session.execute(
                 select(ChannelListing).where(
+                    ChannelListing.tenant_id == tenant_id,
                     ChannelListing.channel_id == channel_id,
                     ChannelListing.variant_id == variant_id,
                 )
@@ -246,13 +278,13 @@ class SyncDispatcher:
         operation: str,
         *args: Any,
         **kwargs: Any,
-    ) -> Any | None:
+    ) -> Any:
         """Apply rate limit + breaker + error classification around ``op``,
         under a ``channel.push`` span + a push-outcome counter (AI-2.5.6.3).
 
-        Returns ``op``'s value on success, ``None`` when the call was skipped
-        (breaker open) or the adapter raised a non-retryable error. Re-raises
-        retryable errors so the consumer's backoff fires.
+        Returns ``op``'s value on success, the ``_SKIPPED`` sentinel when the
+        call was skipped (breaker open) or the adapter raised a non-retryable
+        error. Re-raises retryable errors so the consumer's backoff fires.
         """
         with sync_span("channel.push", channel_code=channel.code, operation=operation):
             try:
@@ -263,7 +295,7 @@ class SyncDispatcher:
                     "sync_skip_breaker_open",
                     extra={"channel_id": str(channel.id), "channel_code": channel.code},
                 )
-                return None
+                return _SKIPPED
             except AdapterRetryableError:
                 record_push(channel_code=channel.code, operation=operation, outcome="retryable")
                 raise
@@ -278,7 +310,7 @@ class SyncDispatcher:
                         "error_message": exc.message,
                     },
                 )
-                return None
+                return _SKIPPED
             record_push(channel_code=channel.code, operation=operation, outcome="success")
             return result
 
