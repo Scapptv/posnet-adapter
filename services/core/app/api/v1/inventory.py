@@ -23,6 +23,7 @@ from ...domain.inventory import (
     create_warehouse,
     get_inventory,
     list_warehouses,
+    transfer_stock,
 )
 from ..deps import get_tenant_session, require_tenant, requires_permission
 
@@ -93,6 +94,23 @@ class InventoryLevelResponse(BaseModel):
         return self.qty - self.reserved_qty
 
 
+class TransferRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    variant_id: UUID
+    from_warehouse_id: UUID
+    to_warehouse_id: UUID
+    qty: int = Field(gt=0)
+    reference: str | None = Field(default=None, max_length=200)
+
+
+class TransferResponse(BaseModel):
+    """Both legs of an atomic transfer — source debited, destination credited."""
+
+    source: InventoryLevelResponse
+    destination: InventoryLevelResponse
+
+
 # ---- warehouses ----
 
 
@@ -143,6 +161,32 @@ async def move(
         expected_version=body.expected_version,
     )
     return InventoryLevelResponse.model_validate(level)
+
+
+@router.post(
+    "/inventory/transfers",
+    status_code=status.HTTP_201_CREATED,
+    response_model=TransferResponse,
+)
+async def transfer(
+    body: TransferRequest,
+    _w: Principal = Depends(_WRITE),
+    tenant_id: UUID = Depends(require_tenant),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> TransferResponse:
+    source, destination = await transfer_stock(
+        session,
+        tenant_id=tenant_id,
+        variant_id=body.variant_id,
+        from_warehouse_id=body.from_warehouse_id,
+        to_warehouse_id=body.to_warehouse_id,
+        qty=body.qty,
+        reference=body.reference,
+    )
+    return TransferResponse(
+        source=InventoryLevelResponse.model_validate(source),
+        destination=InventoryLevelResponse.model_validate(destination),
+    )
 
 
 @router.get("/inventory", response_model=list[InventoryLevelResponse])

@@ -18,7 +18,11 @@ from libs.auth import Principal
 from libs.common import ConflictError, NotFoundError, ValidationError
 from services.core.app.api.deps import get_principal
 from services.core.app.api.v1 import inventory as inv
-from services.core.app.api.v1.inventory import MovementRequest, WarehouseCreateRequest
+from services.core.app.api.v1.inventory import (
+    MovementRequest,
+    TransferRequest,
+    WarehouseCreateRequest,
+)
 from services.core.app.config import Settings
 from services.core.app.domain.catalog import add_variant, create_product
 from services.core.app.domain.inventory import create_warehouse
@@ -281,6 +285,102 @@ async def test_inventory_is_tenant_isolated(
         t2_warehouses = await inv.list_warehouses_(_r=_MGR, _tenant_id=t2, session=session)
     assert t2_levels == []  # t1's stock invisible
     assert all(w.name != "T1WH" for w in t2_warehouses)
+
+
+# ---- transfer (2-warehouse atomic, AI-2.2 follow-up) ----
+
+
+@pytest.mark.integration
+async def test_transfer_moves_stock_atomically(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """Stock is conserved: the source is debited and the destination credited by
+    the same amount, in one transaction."""
+    t1 = await _seed_tenant(async_session_factory, subject="kc-inv-tr", email="tr@t.az")
+    async with _scoped(async_session_factory, t1) as session:
+        variant_id = await _variant(session, t1)
+        a = (await create_warehouse(session, tenant_id=t1, name="A", type_="store")).id
+        b = (await create_warehouse(session, tenant_id=t1, name="B", type_="store")).id
+        await inv.move(_move(variant_id, a, "in", 10), _w=_MGR, tenant_id=t1, session=session)
+        result = await inv.transfer(
+            TransferRequest(variant_id=variant_id, from_warehouse_id=a, to_warehouse_id=b, qty=4),
+            _w=_MGR,
+            tenant_id=t1,
+            session=session,
+        )
+    assert (result.source.qty, result.source.available) == (6, 6)
+    assert (result.destination.qty, result.destination.available) == (4, 4)
+
+
+@pytest.mark.integration
+async def test_transfer_insufficient_source_moves_nothing(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """Anti-oversell: a transfer the source can't cover raises and leaves both
+    warehouses untouched (the destination level is never even created)."""
+    t1 = await _seed_tenant(async_session_factory, subject="kc-inv-tr2", email="tr2@t.az")
+    async with _scoped(async_session_factory, t1) as session:
+        variant_id = await _variant(session, t1)
+        a = (await create_warehouse(session, tenant_id=t1, name="A", type_="store")).id
+        b = (await create_warehouse(session, tenant_id=t1, name="B", type_="store")).id
+        await inv.move(_move(variant_id, a, "in", 3), _w=_MGR, tenant_id=t1, session=session)
+
+    with pytest.raises(ConflictError):  # source has 3, can't transfer 5
+        async with _scoped(async_session_factory, t1) as session:
+            await inv.transfer(
+                TransferRequest(
+                    variant_id=variant_id, from_warehouse_id=a, to_warehouse_id=b, qty=5
+                ),
+                _w=_MGR,
+                tenant_id=t1,
+                session=session,
+            )
+
+    async with _scoped(async_session_factory, t1) as session:
+        levels = await inv.levels(variant_id, _r=_MGR, _tenant_id=t1, session=session)
+    by_wh = {lvl.warehouse_id: lvl.qty for lvl in levels}
+    assert by_wh.get(a) == 3  # source unchanged
+    assert b not in by_wh  # destination never created
+
+
+@pytest.mark.integration
+async def test_transfer_same_warehouse_rejected(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    t1 = await _seed_tenant(async_session_factory, subject="kc-inv-tr3", email="tr3@t.az")
+    async with _scoped(async_session_factory, t1) as session:
+        variant_id = await _variant(session, t1)
+        a = (await create_warehouse(session, tenant_id=t1, name="A", type_="store")).id
+        await inv.move(_move(variant_id, a, "in", 5), _w=_MGR, tenant_id=t1, session=session)
+        with pytest.raises(ValidationError):
+            await inv.transfer(
+                TransferRequest(
+                    variant_id=variant_id, from_warehouse_id=a, to_warehouse_id=a, qty=1
+                ),
+                _w=_MGR,
+                tenant_id=t1,
+                session=session,
+            )
+
+
+@pytest.mark.integration
+async def test_transfer_unknown_destination_not_found(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    t1 = await _seed_tenant(async_session_factory, subject="kc-inv-tr4", email="tr4@t.az")
+    async with _scoped(async_session_factory, t1) as session:
+        variant_id = await _variant(session, t1)
+        a = (await create_warehouse(session, tenant_id=t1, name="A", type_="store")).id
+        await inv.move(_move(variant_id, a, "in", 5), _w=_MGR, tenant_id=t1, session=session)
+        with pytest.raises(NotFoundError):
+            await inv.transfer(
+                TransferRequest(
+                    variant_id=variant_id, from_warehouse_id=a, to_warehouse_id=uuid4(), qty=2
+                ),
+                _w=_MGR,
+                tenant_id=t1,
+                session=session,
+            )
 
 
 # ---- gating (through the full app) ----

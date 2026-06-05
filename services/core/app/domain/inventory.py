@@ -76,6 +76,56 @@ async def get_inventory(session: AsyncSession, variant_id: UUID) -> Sequence[Inv
     )
 
 
+async def transfer_stock(
+    session: AsyncSession,
+    *,
+    tenant_id: UUID,
+    variant_id: UUID,
+    from_warehouse_id: UUID,
+    to_warehouse_id: UUID,
+    qty: int,
+    reference: str | None = None,
+) -> tuple[Inventory, Inventory]:
+    """Move ``qty`` of a variant between two warehouses, atomically (AI-2.2 follow-up).
+
+    Two movements in the caller's one transaction — ``out`` of the source (which
+    enforces anti-oversell: it raises ``ConflictError`` if the source can't cover
+    ``qty``) then ``in`` to the destination. Both land together or neither does,
+    so stock is conserved — never created or lost in flight. Each leg emits its
+    own ``inventory.movement.applied`` event, so both warehouses' channel stock
+    re-syncs. Returns the updated ``(source, destination)`` levels.
+    """
+    if qty <= 0:
+        raise ValidationError("transfer qty must be positive")
+    if from_warehouse_id == to_warehouse_id:
+        raise ValidationError("source and destination warehouses must differ")
+    # Validate the destination up front: the ``out`` below debits the source
+    # immediately, so a non-existent target must fail before that, not after.
+    if (
+        await session.execute(select(Warehouse.id).where(Warehouse.id == to_warehouse_id))
+    ).first() is None:
+        raise NotFoundError("destination warehouse not found in this tenant")
+    source = await apply_movement(
+        session,
+        tenant_id=tenant_id,
+        variant_id=variant_id,
+        warehouse_id=from_warehouse_id,
+        kind="out",
+        qty=qty,
+        reference=reference,
+    )
+    destination = await apply_movement(
+        session,
+        tenant_id=tenant_id,
+        variant_id=variant_id,
+        warehouse_id=to_warehouse_id,
+        kind="in",
+        qty=qty,
+        reference=reference,
+    )
+    return source, destination
+
+
 async def apply_movement(
     session: AsyncSession,
     *,
