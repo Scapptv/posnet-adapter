@@ -427,6 +427,18 @@ AI-2.5 MVP-dən sonra, genişlənmədən ƏVVƏL:
 - MVP-ni operator-un retail satıcılarına (5–10) demo et ("məhsulunu Birmarket-ə 5 dəqiqəyə çıxar")
 - Strukturlaşmış geri-bildirim (validation toolkit)
 
+**Demo dövrəsi (turnkey artifact) — Posnet → kanal → Posnet tam loop:**
+İcra-edilə-bilən sübut: [tests/integration/test_e2e_full_loop.py](tests/integration/test_e2e_full_loop.py)
+(`uv run pytest tests/integration/test_e2e_full_loop.py` — eyni mock Posnet həm mənbə, həm sink; real DB üzərində 6 addımı keçir). Satıcıya danışılan 6 addım:
+1. **Posnet-dən çək:** satıcının Posnet kataloqu (məhsul/qiymət/stok) hub-a mirror olunur (`make pos-sync`).
+2. **Publish:** satıcı məhsulu "online çıxar" ilə açır (admin-web).
+3. **Kanala push:** hub məhsulu avtomatik marketplace-ə (Birmarket/Trendyol) listing edir — Posnet qiymət + stok ilə.
+4. **Sifariş gəlir:** kanal sifarişi webhook → hub stoku rezerv edir (anti-oversell) → **Posnet-ə geri yazılır** (satış mənbədə qeyd olunur).
+5. **Stok hər yerdə düşür:** rezerv kanala geri push olunur — marketplace stoku da azalır.
+6. **0 oversell:** mövcuddan artıq 2-ci sifariş rədd olunur, Posnet-ə yazılmır, stok heç vaxt mənfi olmur.
+
+Mesaj: "Posnet məhsulun 1 addımda marketplace-də, sifariş Posnet-ə düşür, stok hər yerdə dürüst."
+
 **Kill / Continue:**
 - [ ] ≥ 5 satıcı MVP gördü
 - [ ] ≥ 3 satıcı konkret ağrı + ödəmə istəyi ("istifadə edərdim")
