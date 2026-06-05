@@ -132,14 +132,16 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 2. **Auth sxemi + credential** — Bearer / API-key / HMAC / başqa; real sirr → **Vault**-a yazılmalı (AI yalnız `vault://...` ref istifadə edir).
 3. **Per-tenant base URL**(lar).
 
-**AI nə edə bilər (bunlar gələnə qədər):** Hub catalog/inventory admin-web/API ilə doldurulur (mock-first); G-V demo mock Posnet ilə tam işləyir. Seam-lər hazırdır → interfeys+credential gələndə dəyişiklik **minimal** (yalnız `_to_canonical`/`push_order` mapping + per-tenant Vault ref wiring + contract test; upstream toxunulmur).
+**✅ UPDATE (2026-06-05) — İnterfeys MƏLUM oldu (1+3 həll):** Operator real Posnet layihəsini göstərdi (`C:\Users\PC\OneDrive\Desktop\Posnet A`, "API keys" sessiyası). AI araşdırdı + sənədləşdirdi → [docs/integrations/posnet-connector-spec.md](docs/integrations/posnet-connector-spec.md). Real Posnet = **UltimatePOS Connector API**: auth **Laravel Passport OAuth2 (password grant)** → Bearer; pull `GET /connector/api/variation`; push `POST /connector/api/sell`; base `{APP_URL}/connector/api`. Tam endpoint/shape/mapping spec-dədir.
+**Beləliklə gate DARALDI → yalnız #2 (credential → Vault):** `base_url`, `oauth_client_id`, `oauth_client_secret`, `api_user`, `api_password` (Vault path-ları spec §6). OAuth client superadmin UI `/connector/clients`-də yaradılır. Operator bunları **Vault-a yazır** (repo-ya YOX). + config (sirr deyil): `location_id`, `walk_in_contact_id`, `price_includes_tax`.
+
+**Connector build (credential gələndə, V1.4):** OAuth token manager + real `_to_canonical` (variation shape) + `push_order` (`/sell` + SKU→product_id/variation_id map) + per-tenant config. Spec §5. Upstream toxunulmur (`PosSourceAdapter` eyni).
 
 **Variantlar:**
-- A) Operator **indi** Posnet interfeysi + credential verir → AI real connector yazır (mapping + auth wiring + contract test) və swap edir.
-- B) **Sonra** verilir → mock-first davam edir; G-V demo mock ilə keçirilir; real swap G-V *continue* qərarından sonra (partner/interfeys hazır olanda).
-- C) Posnet **REST API vermir** (DB-direct / fayl-eksport / fərqli protokol) → connector strategiyası uyğunlaşdırılır (yeni ADR; `PosSourceAdapter` kontraktı eyni qalır).
+- A) Operator **indi** credential-ləri Vault-a yazır → AI real connector-i yazır (OAuth + mapping + contract test) və swap edir. (İnterfeys hazırdır → A artıq mümkündür.)
+- B) **Sonra** → mock-first davam; real swap credential Vault-a yazılanda.
 
-**Tövsiyə:** **B** — G-V demo mock-first ilə yetərlidir (crown-jewel loop sübut olunub). Real swap həm operator-un Posnet-ə çıxışından, həm də Posnet layihəsinin öz interfeys hazırlığından asılıdır → G-V *continue* + interfeys hazır olanda edilsin. A seçilərsə, AI dərhal başlaya bilər (spec+credential verilən kimi).
+**Tövsiyə:** İnterfeys həll olundu. Növbəti = operator OAuth client yaradıb credential-ləri **Vault-a yazsın** (spec §6 path-ları) → AI dərhal real connector-i yazar. Vault dev-mode-dadır (ADR-0003); prod Vault G7. Test üçün operator bir Posnet instansiyası (staging/lokal) + API user verə bilər.
 **Cavab:** (insan dolduracaq)
 **Cavab tarixi:** (insan dolduracaq)
 
