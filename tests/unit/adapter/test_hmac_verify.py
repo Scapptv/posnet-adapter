@@ -60,3 +60,92 @@ def test_missing_signature_rejects() -> None:
 def test_garbage_signature_rejects() -> None:
     assert verify_signature(body=b"x", secret=_SECRET, signature="not-a-hex") is False
     assert verify_signature(body=b"x", secret=_SECRET, signature="sha256=") is False
+
+
+# ----------------------------------------------------------------
+# H1 (ADR-0020) — timestamp-bound replay protection
+# ----------------------------------------------------------------
+
+
+def _sign_ts(body: bytes, ts: int, secret: str = _SECRET) -> str:
+    """Sign the timestamp-bound payload the verifier reconstructs: ``"{ts}." + body``."""
+    signed = f"{ts}.".encode() + body
+    return "sha256=" + hmac.new(secret.encode(), signed, hashlib.sha256).hexdigest()
+
+
+@pytest.mark.unit
+def test_timestamped_signature_within_window_passes() -> None:
+    body = b'{"order": 1}'
+    now = 1_000_000.0
+    ts = int(now)
+    assert (
+        verify_signature(
+            body=body, secret=_SECRET, signature=_sign_ts(body, ts), timestamp=str(ts), now=now
+        )
+        is True
+    )
+
+
+@pytest.mark.unit
+def test_stale_timestamp_is_rejected_even_with_valid_mac() -> None:
+    """A captured delivery replayed after the window closes must fail."""
+    body = b'{"order": 1}'
+    now = 1_000_000.0
+    ts = int(now) - 301  # just outside the default 300s window
+    assert (
+        verify_signature(
+            body=body, secret=_SECRET, signature=_sign_ts(body, ts), timestamp=str(ts), now=now
+        )
+        is False
+    )
+
+
+@pytest.mark.unit
+def test_future_timestamp_is_rejected() -> None:
+    body = b"x"
+    now = 1_000_000.0
+    ts = int(now) + 301
+    assert (
+        verify_signature(
+            body=body, secret=_SECRET, signature=_sign_ts(body, ts), timestamp=str(ts), now=now
+        )
+        is False
+    )
+
+
+@pytest.mark.unit
+def test_malformed_timestamp_is_rejected() -> None:
+    body = b"x"
+    assert (
+        verify_signature(
+            body=body,
+            secret=_SECRET,
+            signature=_sign_ts(body, 1_000_000),
+            timestamp="not-int",
+            now=1_000_000.0,
+        )
+        is False
+    )
+
+
+@pytest.mark.unit
+def test_timestamp_is_bound_into_mac() -> None:
+    """A MAC signed for ts1 must not verify when presented with ts2 (the
+    attacker can't slide the timestamp forward to refresh the window)."""
+    body = b"x"
+    now = 1_000_000.0
+    sig_for_old = _sign_ts(body, int(now) - 10)
+    # Present a fresh (in-window) timestamp with the old MAC → mismatch.
+    assert (
+        verify_signature(
+            body=body, secret=_SECRET, signature=sig_for_old, timestamp=str(int(now)), now=now
+        )
+        is False
+    )
+
+
+@pytest.mark.unit
+def test_body_only_signing_still_works_without_timestamp() -> None:
+    """Backward compat: no timestamp → legacy body-only HMAC (unchanged)."""
+    body = b'{"legacy": true}'
+    assert verify_signature(body=body, secret=_SECRET, signature=_sign(body)) is True

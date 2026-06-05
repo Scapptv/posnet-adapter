@@ -86,7 +86,16 @@ async def receive_webhook(
                 status_code=503, detail="adapter declares no webhook signature header"
             )
         signature = request.headers.get(signature_header)
-        if not verify_signature(body=body, secret=str(secret), signature=signature):
+        # Replay protection (H1, ADR-0020): if the adapter declares a timestamp
+        # header, bind it into the HMAC and reject deliveries outside the skew
+        # window. Channels that don't sign a timestamp fall back to body-only.
+        timestamp_header = adapter.capabilities.webhook_timestamp_header
+        timestamp = request.headers.get(timestamp_header) if timestamp_header else None
+        if timestamp_header is not None and not timestamp:
+            raise HTTPException(status_code=401, detail="missing webhook timestamp")
+        if not verify_signature(
+            body=body, secret=str(secret), signature=signature, timestamp=timestamp
+        ):
             raise HTTPException(status_code=401, detail="invalid webhook signature")
 
         try:
