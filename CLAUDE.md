@@ -98,8 +98,9 @@ Layihədə yalnız **4 fayl** mövcuddur (bütün referans məzmun vahid sənəd
 6. `make verify` — keçməsə fix, 3 cəhd, sonra STOP
 7. Self-review checklist (aşağıda)
 8. `git add . && git commit -m "..."`
-9. STATUS.md yenilə
-10. Növbəti task və ya Gate-də DAYAN
+9. STATUS.md yenilə + commit
+10. **`git push origin main`** — GitHub-first (2026-06-05): hər task verify+commit-dən sonra GitHub-a push. CI hələ billing-bloklu (Q-002, operator), amma push aktiv.
+11. Növbəti task və ya Gate-də DAYAN
 ```
 
 ### Self-review checklist (commit-dən əvvəl)

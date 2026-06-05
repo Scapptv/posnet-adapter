@@ -4,11 +4,9 @@
 **Cari task:** **AI-2.5 gate review (operator) → G-V validasiya**. Kod tərəfi tam: adapter kontraktı + contract test · E2E 0 oversell · reconciliation · rate-limit+retry+DLQ · OTel metrik · swap-ready · audit (C1/C2/H1/H4/H5) · **H6 sync deploy-edilə-bilən (registry-driven wiring)**. Növbəti kod-işi yoxdur — gate operator təsdiqi gözləyir.
 **Son commit:** `96d5e68` — feat(pos): AI-2.8.1 source-POS connector (Posnet, mock-first)
 **Son uğurlu verify:** 2026-06-05; AI-2.8.1 TAM (Python **606 @ 98.20%**; ruff+format+mypy+bandit+detect-secrets keçir). G-V demo dövrəsi tam (admin-web). AI-2.5 gate: HUMAN-GATES.md (təsdiq gözləyir).
-**Vəziyyət:** AI-2 (2.1–2.4 ✅; **AI-2.H1-H5 ✅**; **AI-2.5.1-5.6 ✅** contract + dispatcher + mock + webhook ingress + **E2E MVP (0 oversell)** + **reconciliation** + **OTel observability**; **+ audit-remediation ADR-0020 C1/C2/H1/H4/H5 merge**). **AI-2.5 nüvəsi tam — G-V validasiya gate-i növbəti.** GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (Q-002, operator), push pauza (lokal-only).
+**Vəziyyət:** AI-2 (2.1–2.4 ✅; **AI-2.H1-H5 ✅**; **AI-2.5.1-5.6 ✅** contract + dispatcher + mock + webhook ingress + **E2E MVP (0 oversell)** + **reconciliation** + **OTel observability**; **+ audit-remediation ADR-0020 C1/C2/H1/H4/H5 merge**). **AI-2.5 nüvəsi tam — G-V validasiya gate-i növbəti.** GitHub `Scapptv/posnet-adapter` (public) — **GitHub-first: `main` origin-də sync** (2026-06-05, 58 commit AI-2.2→AI-2.8.1 push olundu). **CI hələ bloklu** (Q-002 billing — yalnız operator həll edir) amma **push aktiv**, iş GitHub-da davam edir.
 
-> ℹ️ **Branch (2026-06-04):** AI-2.5.5 roadmap ardıcıl xəttinə (`main`) cherry-pick olundu (2.5.4 → 2.5.5). Əlaqəsiz `loyalty_client` işi ayrı `feat/loyalty-client` branch-indədir (origin-ə push olunub) — roadmap trekinə qarışmır.
->
-> 🔧 **Audit remediation (2026-06-05, `fix/audit-remediation` branch):** dərin audit (ADR-0020) — düzəldildi (TDD, 8 commit): **C1** cross-tenant dispatcher scope, **C2** yalançı-synced damğa, **H1** webhook HMAC replay window, **H4** outbox monotonic ordering (migration 0013), **H5/M7** pricing deterministik tiebreak + validity validasiya. Loyalty-only deps (tenacity/pybreaker) adapterdən çıxarıldı. **H6** (sync wiring) → 5.6.3 koordinasiya; M1-M5 follow-up backlog. Detal: `docs/adr/0020-audit-remediation.md`.
+> ✅ **GitHub-first (2026-06-05):** bundan sonra iş axını — hər task → verify → commit → **`push origin/main`**. Bütün iş `main`-ə birləşib və origin-də. `fix/audit-remediation` (audit ADR-0020) main-ə merge + local silindi; `save/ai-2-5-5-order-ingest` artıq (silindi). `feat/loyalty-client` = ayrı loyalty treki (origin-də). Audit (C1/C2/H1/H4/H5/M7) + AI-2.8.1 Posnet connector main-dədir.
 
 ---
 
