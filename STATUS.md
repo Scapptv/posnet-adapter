@@ -2,8 +2,8 @@
 
 **Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18); **Faza AI-2.H TAM (H1-H5)**; **AI-2.5 ✅ KOD TƏRƏFİ TAM (5.1-5.6)** + **audit-remediation (ADR-0020) merge olundu**
 **Cari task:** **AI-2.5 gate review (operator) → G-V validasiya**. Kod tərəfi tam: adapter kontraktı + contract test · E2E 0 oversell · reconciliation · rate-limit+retry+DLQ · OTel metrik · swap-ready · audit (C1/C2/H1/H4/H5) · **H6 sync deploy-edilə-bilən (registry-driven wiring)**. Növbəti kod-işi yoxdur — gate operator təsdiqi gözləyir.
-**Son commit:** `404a699` — feat(admin-web): AI-2.7 minimal merchant panel
-**Son uğurlu verify:** 2026-06-05; H6 + AI-2.7 TAM (Python suite **598 @ 98.24%** dəyişməz; **admin-web** tsc+eslint(0)+vite build keçir). AI-2.5 gate: HUMAN-GATES.md → AI-2.5 (təsdiq gözləyir).
+**Son commit:** `2b1a1c1` — feat(admin-web): AI-2.7 publish toggle + channels sync view
+**Son uğurlu verify:** 2026-06-05; AI-2.7 TAM (Python **603 @ 98.27%**; admin-web tsc+eslint(0)+vite build keçir). **G-V demo dövrəsi tam:** login → məhsul+variant+stok → "Kanala çıxar" → Kanallar tabında sync listing görünür. AI-2.5 gate: HUMAN-GATES.md (təsdiq gözləyir).
 **Vəziyyət:** AI-2 (2.1–2.4 ✅; **AI-2.H1-H5 ✅**; **AI-2.5.1-5.6 ✅** contract + dispatcher + mock + webhook ingress + **E2E MVP (0 oversell)** + **reconciliation** + **OTel observability**; **+ audit-remediation ADR-0020 C1/C2/H1/H4/H5 merge**). **AI-2.5 nüvəsi tam — G-V validasiya gate-i növbəti.** GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (Q-002, operator), push pauza (lokal-only).
 
 > ℹ️ **Branch (2026-06-04):** AI-2.5.5 roadmap ardıcıl xəttinə (`main`) cherry-pick olundu (2.5.4 → 2.5.5). Əlaqəsiz `loyalty_client` işi ayrı `feat/loyalty-client` branch-indədir (origin-ə push olunub) — roadmap trekinə qarışmır.
@@ -140,7 +140,7 @@ həll olundu**, AI-2.5 təmizlənmiş təməl üstündə qurula bilər.
   - API: `POST/GET /v1/shifts` · `GET /v1/shifts/{id}` (detail+summary) · `POST /{id}/close` · `POST /{id}/cash-movements`. Gating shift:read/write
 - [ ] AI-2.5-POS Sale/çek (yarat → stok düş, atomik) + X/Z report
 - [ ] AI-2.6 CanonicalProduct/Inventory/Price map (catalog ↔ canonical_model — hub üçün kritik)
-- [x] **AI-2.7** ✅ — 2026-06-05. **Admin-web minimal** (merchant panel, G-V demo giriş qatı) — Vite+React+TS ([apps/admin-web](apps/admin-web/src)). Keycloak password-grant login (posnet-pos) + Bearer API client; **Products** (list/create + variant/qiymət + variant-üzrə inventar: anbar levels + movement in/out/reserve/...); **Warehouses** (list/create). Mövcud core API-ları istehlak edir, backend dəyişməz. tsc + eslint(0) + vite build keçir. Publish toggle + channels/sync-status view (backend endpoint lazım) növbəti dilim.
+- [x] **AI-2.7** ✅ — 2026-06-05. **Admin-web minimal** (merchant panel, G-V demo giriş qatı) — Vite+React+TS ([apps/admin-web](apps/admin-web/src)). Keycloak password-grant login (posnet-pos) + Bearer API client; **Products** (list/create + variant/qiymət + variant-üzrə inventar: anbar levels + movement in/out/reserve/...); **Warehouses** (list/create). tsc + eslint(0) + vite build keçir. **Publish + channels view** (`bd18d07`+`2b1a1c1`): `set_online_published` (online_published flip + hər variant `catalog.variant.added` re-emit → dispatcher push) + `POST /v1/products/{id}/publish|unpublish` + `GET /v1/channels` + `/v1/channel-listings`; admin-web-də "Kanala çıxar" toggle + **Kanallar tabı** (sync listinglər: sku/external-id/status/son-sync). **G-V demo dövrəsi tam** (login→məhsul→publish→kanalda görünür). 5 backend test → 603 @ 98.27%.
 - [ ] AI-2.8 Flutter kassir minimal (offline-first satış) — opsional, gec OK
 
 **Follow-up (G2-yə qədər həll — AI-2.H sonrası vəziyyət):**
