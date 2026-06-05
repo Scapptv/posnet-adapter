@@ -112,15 +112,42 @@ async def set_online_published(
     return product
 
 
-async def list_products(session: AsyncSession, *, query: str | None = None) -> Sequence[Product]:
-    """All products (RLS-scoped), optionally full-text filtered by ``query`` on name."""
+async def list_products(
+    session: AsyncSession,
+    *,
+    query: str | None = None,
+    limit: int | None = None,
+    offset: int = 0,
+) -> Sequence[Product]:
+    """Products (RLS-scoped), optionally full-text filtered by ``query`` on name.
+
+    ``limit``/``offset`` paginate over a deterministic ``ORDER BY name, id`` (the
+    ``id`` tiebreaker keeps page boundaries stable when names collide).
+    ``limit=None`` returns all matches — callers that page pass an explicit limit.
+    """
     stmt = select(Product)
     if query:
         # Matches the gin(to_tsvector('simple', name)) index so it stays index-backed.
         stmt = stmt.where(
             func.to_tsvector("simple", Product.name).op("@@")(func.plainto_tsquery("simple", query))
         )
-    return (await session.execute(stmt.order_by(Product.name))).scalars().all()
+    stmt = stmt.order_by(Product.name, Product.id)
+    if offset:
+        stmt = stmt.offset(offset)
+    if limit is not None:
+        stmt = stmt.limit(limit)
+    return (await session.execute(stmt)).scalars().all()
+
+
+async def count_products(session: AsyncSession, *, query: str | None = None) -> int:
+    """Total products matching ``query`` (RLS-scoped) — the page total for
+    pagination headers, independent of ``limit``/``offset``."""
+    stmt = select(func.count()).select_from(Product)
+    if query:
+        stmt = stmt.where(
+            func.to_tsvector("simple", Product.name).op("@@")(func.plainto_tsquery("simple", query))
+        )
+    return (await session.execute(stmt)).scalar_one()
 
 
 async def get_product(

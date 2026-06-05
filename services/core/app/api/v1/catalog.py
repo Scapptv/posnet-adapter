@@ -7,9 +7,10 @@ RLS-scoped session, so a tenant only ever sees/edits its own catalog.
 
 from __future__ import annotations
 
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,7 @@ from libs.common import NotFoundError, ValidationError, validate_currency_code
 
 from ...domain.catalog import (
     add_variant,
+    count_products,
     create_product,
     find_variant_by_barcode,
     find_variant_by_sku,
@@ -125,12 +127,19 @@ async def create(
 
 @router.get("/products", response_model=list[ProductResponse])
 async def list_(
+    response: Response,
     q: str | None = None,
+    limit: Annotated[int | None, Query(ge=1, le=200)] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
     _r: Principal = Depends(_READ),
     _tenant_id: UUID = Depends(require_tenant),
     session: AsyncSession = Depends(get_tenant_session),
 ) -> list[ProductResponse]:
-    products = await list_products(session, query=q)
+    """List products. ``limit``/``offset`` paginate (``limit`` omitted → all);
+    the full match count is returned in the ``X-Total-Count`` header so a client
+    can page without a second endpoint."""
+    products = await list_products(session, query=q, limit=limit, offset=offset)
+    response.headers["X-Total-Count"] = str(await count_products(session, query=q))
     return [ProductResponse.model_validate(p) for p in products]
 
 

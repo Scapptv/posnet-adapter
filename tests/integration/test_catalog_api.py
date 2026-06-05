@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from uuid import UUID
 
 import pytest
+from fastapi import Response
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -137,11 +138,37 @@ async def test_list_products_full_text_search(
             ProductCreateRequest(name="Coca Cola"), _w=_MGR, tenant_id=t1, session=session
         )
         await cat.create(ProductCreateRequest(name="Pepsi"), _w=_MGR, tenant_id=t1, session=session)
-        hits = await cat.list_(q="cola", _r=_MGR, _tenant_id=t1, session=session)
-        every = await cat.list_(_r=_MGR, _tenant_id=t1, session=session)
+        hits = await cat.list_(
+            response=Response(), q="cola", _r=_MGR, _tenant_id=t1, session=session
+        )
+        every = await cat.list_(response=Response(), _r=_MGR, _tenant_id=t1, session=session)
 
     assert {p.name for p in hits} == {"Coca Cola"}
     assert {p.name for p in every} == {"Coca Cola", "Pepsi"}
+
+
+@pytest.mark.integration
+async def test_list_products_pagination(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """limit/offset page over a stable order; X-Total-Count carries the full
+    count regardless of the page window."""
+    t1 = await _seed_tenant(async_session_factory, subject="kc-cat-pg", email="pg@t.az")
+    async with _scoped(async_session_factory, t1) as session:
+        for n in ("P1", "P2", "P3", "P4", "P5"):
+            await cat.create(ProductCreateRequest(name=n), _w=_MGR, tenant_id=t1, session=session)
+
+        page1_resp = Response()
+        page1 = await cat.list_(
+            response=page1_resp, limit=2, offset=0, _r=_MGR, _tenant_id=t1, session=session
+        )
+        page2 = await cat.list_(
+            response=Response(), limit=2, offset=2, _r=_MGR, _tenant_id=t1, session=session
+        )
+
+    assert [p.name for p in page1] == ["P1", "P2"]  # stable ORDER BY name, id
+    assert [p.name for p in page2] == ["P3", "P4"]
+    assert page1_resp.headers["X-Total-Count"] == "5"  # full count, not the page size
 
 
 @pytest.mark.integration
@@ -186,7 +213,7 @@ async def test_catalog_is_tenant_isolated(
     p1_id = p1.id
 
     async with _scoped(async_session_factory, t2) as session:
-        listed = await cat.list_(_r=_MGR, _tenant_id=t2, session=session)
+        listed = await cat.list_(response=Response(), _r=_MGR, _tenant_id=t2, session=session)
         with pytest.raises(NotFoundError):  # t1's product invisible under t2 RLS
             await cat.detail(p1_id, _r=_MGR, _tenant_id=t2, session=session)
     assert all(p.name != "T1 Only" for p in listed)
