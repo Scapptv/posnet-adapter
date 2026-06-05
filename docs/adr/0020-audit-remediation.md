@@ -19,12 +19,12 @@ Bu ADR audit tapıntılarını (loyalty xaricindəki) və onların remediation q
 | # | Risk | Tapıntı | Remediation qərarı | Status |
 |---|---|---|---|---|
 | **C1** | 🔴 | Consumer `system_sessionmaker` (superuser `posnet`, `bypassrls=true` — canlı təsdiq) üzərində işləyir, yalnız `app.current_tenant` GUC qoyur, `SET ROLE posnet_app` yox; dispatcher sorğuları tenant-filtrsiz → wire olunan kimi cross-tenant push. | **Dispatcher hər sorğusunu `tenant_id == event.tenant_id` ilə açıq filtrlə** (order_ingest pattern); defense-in-depth kimi consumer-i `SET LOCAL ROLE posnet_app` ilə tenant-scope-a sal (follow-up). | ✅ FIXED (bu branch) |
-| **C2** | 🔴 | Dispatcher Auth/Permanent xətanı udur (`return None`) + `idempotent` key-i eyni tx-də commit edir → push baş vermədən key+arxiv commit → daimi səssiz drift (reconciliation hələ yoxdur). | **Non-retryable adapter xətası → DLQ-ya yönəlt** (raise et, udma); idempotency key uğursuz push-da commit olunmasın. | ✅ FIXED (bu branch) |
+| **C2** | 🔴→🟠 | Dispatcher Auth/Permanent push xətasını udur + caller `last_synced_at`-ı şərtsiz yeniləyirdi → uğursuz push olunan listing "synced" görünür. (İlkin "daimi drift" qiyməti — lakin operatorun reconcile engine-i (5.6.2) indi stock/price drift-i özünü-sağaldır.) | **`_guard` `_SKIPPED` sentinel; `last_synced_at` yalnız uğurda damğalanır** → stale listing reconcile/monitoring-ə görünür. Residual (Auth-error reconcile də sağalda bilmir + observability) → operator 5.6.3. | ✅ FIXED (bu branch) |
 | **C3/C4** | 🔴 | (loyalty) breaker default-da açılmır + açıq breaker slow-retry. | feat/loyalty-client-də həll olunur (adapter scope-undan kənar). | ⏸️ DEFER (loyalty branch) |
 | **H1** | 🟠 | Kanal webhook HMAC-ı yalnız `body`-ni imzalayır — timestamp/replay qoruması yox. | **Timestamp-bound imza + ±skew window** (loyalty verifier-in pattern-i); capability-də timestamp header; webhook endpoint enforce. | ✅ FIXED (bu branch) |
 | **H4** | 🟠 | Outbox `ORDER BY created_at` tiebreak-siz; bir tx-dəki event-lər eyni `now()` → reorder. | **`outbox_events.seq BIGSERIAL`** monotonic; relay `ORDER BY seq`. | ✅ FIXED (bu branch) |
 | **H5** | 🟠 | Pricing override eyni-scope + eyni `created_at` → qeyri-deterministik tiebreak. | **`ORDER BY ... created_at DESC, id DESC`** deterministik tiebreak; `set_override` `valid_from < valid_to` validasiya (M7). | ✅ FIXED (bu branch) |
-| **H6** | 🟠 | Sync engine (dispatcher + webhook factory) yalnız testlərdə wire olunub — işlək deploy edilə bilən servis yoxdur. | **`create_app`/lifespan-da registry-driven wiring** (config-gated, `SYNC_DISPATCH_ENABLED`). | ✅ FIXED (bu branch) |
+| **H6** | 🟠 | Sync engine (dispatcher + webhook factory) yalnız testlərdə wire olunub — işlək deploy edilə bilən servis yoxdur. | `create_app`/lifespan-da registry-driven wiring. Operatorun aktiv sahəsi (5.6.x sync engine); duplikasiyadan qaçmaq üçün **5.6.3-ə koordinasiya**. | 📨 OPERATOR (5.6.3) |
 | **M1** | 🟡 | `DATABASE_APP_URL` boşsa tək-pool fallback (RLS 2-ci qatı itir). | Prod-da boş app URL / superuser app rolu start-da rədd edilsin. | 📋 DOC (follow-up) |
 | **M2** | 🟡 | Rate limiter proxy arxasında peer IP-yə key verir; per-channel webhook limit wire olunmayıb. | Trusted `X-Forwarded-For` parse; per-channel webhook limit. | 📋 DOC (follow-up) |
 | **M3** | 🟡 | `cashier` başqa kassirin vardiyasını aça/bağlaya bilir (`cashier_id` body-dən). | `cashier` rolu üçün `cashier_id` = authenticated principal; başqası üçün yalnız manager/admin. | 📋 DOC (follow-up) |
@@ -36,7 +36,7 @@ Bu ADR audit tapıntılarını (loyalty xaricindəki) və onların remediation q
 
 ## Qərar
 
-**Critical + High tapıntıları bu branch-də (`fix/audit-remediation`) TDD ilə düzəldilir** (C1, C2, H1, H4, H5, H6), hər biri öz atomik commit-i ilə. Medium/Low tapıntılar burada **sənədləşdirilir** (follow-up backlog) — axını düzgün/səhvsiz edən nüvə Critical+High-dır; M/L əlavə möhkəmləndirmədir.
+**Critical + High tapıntıları bu branch-də (`fix/audit-remediation`) TDD ilə düzəldildi** (C1, C2, H1, H4, H5 + M7/H3; hər biri öz atomik commit + regression testi ilə — 8 commit). **H6 (production wiring)** operatorun aktiv 5.6.x sync-engine sahəsindədir → duplikasiyadan/toqquşmadan qaçmaq üçün 5.6.3-ə koordinasiya olunur. Medium/Low tapıntılar burada **sənədləşdirilir** (follow-up backlog) — axını düzgün/səhvsiz edən nüvə Critical+High-dır.
 
 Strateji müşahidə (kod deyil): **mobil POS app mövcud deyil** (`apps/pos-flutter` boş). Məhsul "POS lövbərli"dir, amma POS girişi yazılmayıb — G-V validasiyasından əvvəl roadmap-da yenidən qiymətləndirilməlidir (AI-ROADMAP.md follow-up).
 

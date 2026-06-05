@@ -7,6 +7,8 @@
 **Vəziyyət:** AI-2 IN_PROGRESS (2.1–2.4 ✅; **AI-2.H1-H5 ✅ TAM**; **AI-2.5.1-5.5 ✅** contract + dispatcher + mock + webhook ingress + **E2E MVP (0 oversell)**). Növbəti AI-2.5 dilimi: 5.6 reconciliation + OTel. GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (Q-002, operator), push pauza (lokal-only).
 
 > ℹ️ **Branch (2026-06-04):** AI-2.5.5 roadmap ardıcıl xəttinə (`main`) cherry-pick olundu (2.5.4 → 2.5.5). Əlaqəsiz `loyalty_client` işi ayrı `feat/loyalty-client` branch-indədir (origin-ə push olunub) — roadmap trekinə qarışmır.
+>
+> 🔧 **Audit remediation (2026-06-05, `fix/audit-remediation` branch):** dərin audit (ADR-0020) — düzəldildi (TDD, 8 commit): **C1** cross-tenant dispatcher scope, **C2** yalançı-synced damğa, **H1** webhook HMAC replay window, **H4** outbox monotonic ordering (migration 0013), **H5/M7** pricing deterministik tiebreak + validity validasiya. Loyalty-only deps (tenacity/pybreaker) adapterdən çıxarıldı. **H6** (sync wiring) → 5.6.3 koordinasiya; M1-M5 follow-up backlog. Detal: `docs/adr/0020-audit-remediation.md`.
 
 ---
 
