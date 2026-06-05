@@ -572,3 +572,64 @@ async def test_unknown_event_type_is_silently_skipped(
         )
 
     assert adapter.pushes == []
+
+
+# ----------------------------------------------------------------
+# C1 — tenant isolation on the RLS-exempt consumer path (ADR-0020)
+# ----------------------------------------------------------------
+
+
+@pytest.mark.integration
+async def test_dispatch_is_tenant_scoped_on_rls_exempt_session(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """C1 regression (ADR-0020): the production Consumer runs the dispatcher on
+    the system (superuser, RLS-exempt) pool. A tenant-A event must touch ONLY
+    tenant A's channels — never tenant B's — even with no ``app.current_tenant``
+    set. Before the fix ``_active_channels`` returned every tenant's channel, so
+    A's product was pushed onto B's marketplace account (cross-tenant)."""
+    tenant_a = await _seed_tenant(async_session_factory, subject="ct-a", email="ct-a@t.az")
+    tenant_b = await _seed_tenant(async_session_factory, subject="ct-b", email="ct-b@t.az")
+    channel_a = await _seed_channel(async_session_factory, tenant_a, code="chan-a")
+    await _seed_channel(async_session_factory, tenant_b, code="chan-b")
+
+    adapter = RecordingAdapter()
+    dispatcher = SyncDispatcher(adapter_factory=_factory_for(adapter), config=_config())
+
+    async with _scoped(async_session_factory, tenant_a) as session:
+        product = await create_product(session, tenant_id=tenant_a, name="P", currency="AZN")
+        product.online_published = True
+        variant = await add_variant(
+            session, tenant_id=tenant_a, product_id=product.id, sku="CT-1", base_price_minor=500
+        )
+        variant_id = variant.id
+
+    # Dispatch on an UNSCOPED (superuser, RLS-exempt) session — exactly how the
+    # real Consumer invokes the handler (no SET ROLE posnet_app, no tenant GUC).
+    async with async_session_factory() as session, session.begin():
+        await dispatcher(
+            session,
+            Event(
+                event_type=CATALOG_VARIANT_ADDED,
+                tenant_id=tenant_a,
+                payload={"variant_id": str(variant_id)},
+            ),
+        )
+
+    # Exactly one push — to tenant A's channel only (no leak to tenant B).
+    assert len(adapter.pushes) == 1, f"cross-tenant leak: {adapter.pushes}"
+
+    # And the only listing created stays within tenant A on channel A.
+    async with async_session_factory() as session, session.begin():
+        listings = (
+            (
+                await session.execute(
+                    select(ChannelListing).where(ChannelListing.variant_id == variant_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+    assert len(listings) == 1
+    assert listings[0].tenant_id == tenant_a
+    assert listings[0].channel_id == channel_a

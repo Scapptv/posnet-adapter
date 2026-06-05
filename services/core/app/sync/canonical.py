@@ -140,8 +140,18 @@ async def build_canonical_product(
         .scalars()
         .all()
     )
+    # Filter warehouses by the variant's own tenant (C1, ADR-0020): the
+    # dispatcher may run this on the RLS-exempt system pool, so scope explicitly
+    # rather than relying on app.current_tenant.
     online_warehouse_ids: set[UUID] = set(
-        (await session.execute(select(Warehouse.id).where(Warehouse.is_online_sellable.is_(True))))
+        (
+            await session.execute(
+                select(Warehouse.id).where(
+                    Warehouse.tenant_id == variant.tenant_id,
+                    Warehouse.is_online_sellable.is_(True),
+                )
+            )
+        )
         .scalars()
         .all()
     )
