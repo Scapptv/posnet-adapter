@@ -19,7 +19,7 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from libs.common import NotFoundError
+from libs.common import NotFoundError, ValidationError
 from libs.eventbus import Event, enqueue
 
 from ..infrastructure.db.models import PriceOverride, Product, Store, Variant
@@ -52,6 +52,10 @@ async def set_override(
         store = (await session.execute(select(Store.id).where(Store.id == store_id))).first()
         if store is None:
             raise NotFoundError("store not found in this tenant")
+    # M7 (ADR-0020): a window that ends at or before it starts can never be active
+    # — reject it at write time instead of silently storing a dead override.
+    if valid_from is not None and valid_to is not None and valid_from >= valid_to:
+        raise ValidationError("valid_from must be before valid_to")
 
     override = PriceOverride(
         tenant_id=tenant_id,
@@ -97,6 +101,8 @@ async def resolve_price(
         raise NotFoundError("variant not found in this tenant")
     base_price_minor, currency = row
 
+    # Validity is the half-open interval [valid_from, valid_to): from inclusive,
+    # to exclusive (H3, ADR-0020); NULL means open-ended on that side.
     conditions = [
         PriceOverride.variant_id == variant_id,
         or_(PriceOverride.valid_from.is_(None), PriceOverride.valid_from <= at),
@@ -111,8 +117,15 @@ async def resolve_price(
         await session.execute(
             select(PriceOverride)
             .where(*conditions)
-            # store-specific beats tenant-wide; newest wins among equals.
-            .order_by(PriceOverride.store_id.is_not(None).desc(), PriceOverride.created_at.desc())
+            # store-specific beats tenant-wide; newest wins; PriceOverride.id is the
+            # deterministic final tiebreak (H5, ADR-0020) — created_at is
+            # transaction-time, so overrides written in one tx tie on it and would
+            # otherwise resolve arbitrarily (non-deterministic pushed price).
+            .order_by(
+                PriceOverride.store_id.is_not(None).desc(),
+                PriceOverride.created_at.desc(),
+                PriceOverride.id.desc(),
+            )
             .limit(1)
         )
     ).scalar_one_or_none()
