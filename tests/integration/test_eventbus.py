@@ -225,3 +225,30 @@ async def test_workers_run_forever_idle_then_process(
     relay_stop.set()
     await asyncio.wait_for(relay_task, timeout=5)
     assert [e.event_type for e in received] == ["e"]
+
+
+@pytest.mark.integration
+async def test_relay_preserves_enqueue_order_within_transaction(
+    async_engine: AsyncEngine,
+    async_session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """H4 (ADR-0020): events enqueued in one transaction share ``created_at``
+    (transaction-time). The relay must emit them in enqueue order via the
+    monotonic ``seq`` — otherwise causally-ordered events (e.g. two stock
+    movements from one reservation) can reach a channel out of order, leaving
+    it on a stale snapshot."""
+    cfg = _config()
+    tenant_id = uuid4()
+    async with async_session_factory() as session, session.begin():
+        for i in range(5):
+            await enqueue(session, Event(event_type="ord", tenant_id=tenant_id, payload={"i": i}))
+
+    relay = OutboxRelay(async_session_factory, cfg)
+    assert await relay.run_once() == 5
+
+    async with async_engine.begin() as conn:
+        msgs = await pgmq.read(conn, QUEUE, vt_seconds=0, qty=10)
+    # pgmq assigns a monotonic msg_id in send order; the relay sent in seq order,
+    # so msg_id order == seq order == enqueue order.
+    seen = [m.message["payload"]["i"] for m in sorted(msgs, key=lambda m: m.msg_id)]
+    assert seen == [0, 1, 2, 3, 4]
