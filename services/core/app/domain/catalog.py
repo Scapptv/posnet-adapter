@@ -76,6 +76,42 @@ async def create_product(
     return product
 
 
+async def set_online_published(
+    session: AsyncSession, *, tenant_id: UUID, product_id: UUID, published: bool
+) -> Product:
+    """Publish / unpublish a product to online channels (AI-2.7).
+
+    Publishing flips the ``online_published`` gate (ADR-0018 §2) and re-emits
+    ``catalog.variant.added`` for every variant, so the dispatcher pushes them to
+    active channels now that they're eligible. Unpublishing just clears the gate
+    (a future delist flow removes the channel listings). RLS-scoped: an unknown /
+    cross-tenant id reads as missing."""
+    product = (
+        await session.execute(select(Product).where(Product.id == product_id))
+    ).scalar_one_or_none()
+    if product is None:
+        raise NotFoundError("product not found in this tenant")
+    product.online_published = published
+    await session.flush()
+    if published:
+        variant_ids = (
+            (await session.execute(select(Variant.id).where(Variant.product_id == product_id)))
+            .scalars()
+            .all()
+        )
+        for variant_id in variant_ids:
+            await enqueue(
+                session,
+                Event(
+                    event_type=CATALOG_VARIANT_ADDED,
+                    tenant_id=tenant_id,
+                    payload={"variant_id": str(variant_id)},
+                ),
+            )
+    await session.refresh(product)
+    return product
+
+
 async def list_products(session: AsyncSession, *, query: str | None = None) -> Sequence[Product]:
     """All products (RLS-scoped), optionally full-text filtered by ``query`` on name."""
     stmt = select(Product)

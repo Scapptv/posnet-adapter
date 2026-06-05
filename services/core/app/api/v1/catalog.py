@@ -23,6 +23,7 @@ from ...domain.catalog import (
     find_variant_by_sku,
     get_product,
     list_products,
+    set_online_published,
 )
 from ..deps import get_tenant_session, require_tenant, requires_permission
 
@@ -60,6 +61,7 @@ class ProductResponse(BaseModel):
     currency: str
     status: str
     store_id: UUID | None
+    online_published: bool
 
 
 class ImageResponse(BaseModel):
@@ -174,6 +176,35 @@ async def add_variant_(
         cost_price_minor=body.cost_price_minor,
     )
     return VariantResponse.model_validate(variant)
+
+
+# ---- online publish (AI-2.7) ----
+
+
+@router.post("/products/{product_id}/publish", response_model=ProductResponse)
+async def publish(
+    product_id: UUID,
+    _w: Principal = Depends(_WRITE),
+    tenant_id: UUID = Depends(require_tenant),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> ProductResponse:
+    product = await set_online_published(
+        session, tenant_id=tenant_id, product_id=product_id, published=True
+    )
+    return ProductResponse.model_validate(product)
+
+
+@router.post("/products/{product_id}/unpublish", response_model=ProductResponse)
+async def unpublish(
+    product_id: UUID,
+    _w: Principal = Depends(_WRITE),
+    tenant_id: UUID = Depends(require_tenant),
+    session: AsyncSession = Depends(get_tenant_session),
+) -> ProductResponse:
+    product = await set_online_published(
+        session, tenant_id=tenant_id, product_id=product_id, published=False
+    )
+    return ProductResponse.model_validate(product)
 
 
 # ---- POS lookup ----
