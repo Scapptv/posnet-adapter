@@ -88,6 +88,18 @@ class Settings(BaseSettings):
     pgmq_visibility_timeout: int = Field(default=30, alias="PGMQ_VISIBILITY_TIMEOUT")
     pgmq_max_retry: int = Field(default=5, alias="PGMQ_MAX_RETRY")
 
+    # ---- Sync engine wiring (H6, ADR-0020) ----
+    # Off by default: wiring the SyncDispatcher as the consumer's handler + the
+    # webhook adapter factory is opt-in (deployed runs set it; tests inject their
+    # own handler/factory and leave it off). Needs registered adapters + active
+    # channel rows to do anything.
+    sync_enabled: bool = Field(default=False, alias="SYNC_ENABLED")
+    # Base URL of the mock marketplace stand-in server (dev/demo). Real adapters
+    # read their endpoint from channel.config / Vault instead.
+    mock_marketplace_base_url: str = Field(
+        default="http://localhost:9200", alias="MOCK_MARKETPLACE_BASE_URL"
+    )
+
     # ---- Observability / OTel (AI-1.13) ----
     # Off by default: instrumentation is process-global, so it is enabled
     # explicitly (.env) in deployed/dev runs and in the telemetry tests.

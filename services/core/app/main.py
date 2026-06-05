@@ -38,6 +38,11 @@ from .middleware.request_id import RequestIdMiddleware
 from .middleware.security import SecurityHeadersMiddleware
 from .rate_limit import build_limiter, exempt_routes
 from .security import build_token_verifier
+from .sync.wiring import (
+    build_dispatcher,
+    build_webhook_adapter_factory,
+    register_builtin_adapters,
+)
 from .telemetry import build_telemetry_config
 
 
@@ -114,6 +119,14 @@ def create_app(
 
     app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
     app.state.settings = settings
+    # H6 (ADR-0020): for a deployable service, wire the SyncDispatcher as the
+    # consumer's handler + the webhook adapter factory off the adapter registry,
+    # so an outbox event fans out to every active channel's adapter. Tests inject
+    # their own event_handler/factory and skip this (sync_enabled off by default).
+    if event_handler is None and settings.sync_enabled:
+        register_builtin_adapters()
+        event_handler = build_dispatcher(settings)
+        app.state.webhook_adapter_factory = build_webhook_adapter_factory(settings)
     # Every consumer handler runs inside the idempotency wrapper (AI-2.H4, audit
     # B5): at-least-once delivery means a redelivered event_id must short-circuit
     # before the handler's external side effect.

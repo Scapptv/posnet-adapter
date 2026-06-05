@@ -84,6 +84,18 @@ class MockMarketplaceAdapter:
         on app shutdown; tests use a fixture that wraps it."""
         await self._client.aclose()
 
+    @classmethod
+    def from_channel(cls, channel: Any, *, settings: Any) -> MockMarketplaceAdapter:
+        """Construct the adapter for a channel row (H6 production wiring, ADR-0020).
+
+        The mock server base URL comes from ``channel.config['base_url']`` or,
+        failing that, ``settings.mock_marketplace_base_url``. ``channel`` and
+        ``settings`` are typed loosely on purpose — the adapter stays decoupled
+        from the app's ORM / config layer (it only reads two attributes)."""
+        config = channel.config if isinstance(channel.config, dict) else {}
+        base_url = config.get("base_url") or settings.mock_marketplace_base_url
+        return cls(MockMarketplaceConfig(base_url=str(base_url)))
+
     # ----------------------------------------------------------------
     # Outbound — push
     # ----------------------------------------------------------------
