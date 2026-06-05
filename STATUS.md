@@ -2,8 +2,8 @@
 
 **Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18); **Faza AI-2.H TAM (H1-H5)**; **AI-2.5 ✅ KOD TƏRƏFİ TAM (5.1-5.6)** + **audit-remediation (ADR-0020) merge olundu**
 **Cari task:** **AI-2.5 gate review (operator) → G-V validasiya**. Kod tərəfi tam: adapter kontraktı + contract test · E2E 0 oversell · reconciliation drift təpib+təmir · rate-limit+retry+DLQ · OTel sync metrik · swap-ready · audit-remediation (C1/C2/H1/H4/H5) main-də. Növbəti kod-işi yoxdur — gate operator təsdiqi gözləyir.
-**Son commit:** `148b06d` — feat(sync): AI-2.5.6.3 OTel spans + sync metrics (+ merge `fix/audit-remediation`)
-**Son uğurlu verify:** 2026-06-05; AI-2.5.6.3 + audit merge TAM (main suite ~585 @ ~98%; ruff+format+mypy+bandit+detect-secrets keçir)
+**Son commit:** `38150fd` — chore: merge fix/audit-remediation (ADR-0020 audit) into main
+**Son uğurlu verify:** 2026-06-05; AI-2.5 + audit merge TAM (main suite **587 @ 98.22%**; ruff+format+mypy+bandit+detect-secrets keçir). AI-2.5 gate: HUMAN-GATES.md → AI-2.5 (təsdiq gözləyir).
 **Vəziyyət:** AI-2 (2.1–2.4 ✅; **AI-2.H1-H5 ✅**; **AI-2.5.1-5.6 ✅** contract + dispatcher + mock + webhook ingress + **E2E MVP (0 oversell)** + **reconciliation** + **OTel observability**; **+ audit-remediation ADR-0020 C1/C2/H1/H4/H5 merge**). **AI-2.5 nüvəsi tam — G-V validasiya gate-i növbəti.** GitHub `Scapptv/posnet-adapter` (public), **CI bloklu** (Q-002, operator), push pauza (lokal-only).
 
 > ℹ️ **Branch (2026-06-04):** AI-2.5.5 roadmap ardıcıl xəttinə (`main`) cherry-pick olundu (2.5.4 → 2.5.5). Əlaqəsiz `loyalty_client` işi ayrı `feat/loyalty-client` branch-indədir (origin-ə push olunub) — roadmap trekinə qarışmır.

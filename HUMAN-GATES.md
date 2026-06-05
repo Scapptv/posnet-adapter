@@ -13,6 +13,7 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 | G0 — Bootstrap done | AI-0 | ✅ **APPROVED** | 2026-06-01 | Scapptv |
 | G1 — Foundation done | AI-1 | ✅ **APPROVED (şərti)** | 2026-06-03 | Scapptv |
 | **AI-2.H — Audit hardening** (ADR-0016) | AI-2 | ✅ **TAM** (avtonom, AI) | 2026-06-04 | — |
+| **AI-2.5 — Adapter framework + 1 kanal** (ADR-0012, crown jewel) | AI-2 | ⏳ **GATE REVIEW** (kod tam + audit merge; operator təsdiqi gözləyir) | — | — |
 | G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
 | **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ Planlandı | — | — |
 | G3 — Order Mgmt done | AI-3 | ❄️ Dondurulub | — | — |
@@ -141,6 +142,55 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 ---
 
 ## Gate Keçidləri (xronoloji jurnal)
+
+### AI-2.5 — Adapter framework + 1 kanal (CROWN JEWEL — TƏSDİQ GÖZLƏYİR)
+**Faza:** AI-2.5 (6 dilim: 5.1-5.6 + reconciliation + OTel observability)
+**Tarix:** 2026-06-04 → 2026-06-05
+**Son commit:** `38150fd` — chore: merge fix/audit-remediation (ADR-0020 audit) into main
+**ADR:** 0012 (hub reframe), 0018 (sync model), 0019 (fetch_listing), 0020 (audit remediation)
+
+**Məhsul tezisi sübut olundu (ADR-0012):** "Merchant məhsulunu kanala çıxarır, online satılır,
+sifariş POS-a düşür, stok hər yerdə azalır" — uçtan-uca işləyir, idempotent, **0 oversell**,
+drift təpib+təmir, müşahidə olunan. Bu, hub-ın crown jewel-i.
+
+**Gate kriteriyaları (roadmap §17.6) — yoxlama nəticələri (AI lokal, testcontainers + dev stack):**
+
+| Kriteriya | Status | Sübut |
+|---|---|---|
+| Adapter kontraktı + mock contract test 100% | ✅ | `tests/contract/adapter_contract.py` + `MockMarketplaceAdapter` subclass (fetch/push/normalize) |
+| E2E dilim idempotent, **0 oversell** | ✅ | `test_e2e_mvp.py`: POS→push_listing→mock→stock/price sync→webhook reserve→stok hər yerdə azalır→ack; ikinci sifariş > availability = rejected (0 oversell) |
+| Reconciliation injected drift-i tapıb təmir edir | ✅ | `test_reconcile.py`: real mock injected stok/qiymət drift → `push_stock`/`push_price` təmir |
+| Rate-limit + retry + DLQ test | ✅ | `ChannelGuard` (token-bucket + breaker); retry re-raise (consumer backoff); DLQ depth metrik (`pgmq.queue_length`) |
+| OTel trace + sync metriklər | ✅ | `channel.push`/`channel.ingest` span; `posnet_sync_push_total` (success rate), `_dlq_depth`, `_lag_seconds` |
+| Swap-ready (real adapter = eyni kontrakt) | ✅ | `ChannelAdapter` Protocol + registry; "yeni kanal = 1 adapter + contract test" |
+
+**Dilim icmalı:**
+- **5.1** Adapter contract (Protocol + Capabilities + Registry + error hierarchy)
+- **5.2** Sync dispatcher (outbox → adapter; rate-limit + breaker)
+- **5.3** Mock marketplace + ilk konkret adapter + contract test
+- **5.4** Webhook ingress (HMAC + normalize + idempotent)
+- **5.5** E2E MVP inbound order ingest (anti-oversell, 0 oversell)
+- **5.6** Reconciliation (drift detect+təmir + `make reconcile`) + OTel observability
+
+**Audit remediation (ADR-0020) merge olundu:** dərin audit `fix/audit-remediation` branch-ində (TDD)
+həll olundu və `main`-ə merge edildi — **C1** (dispatcher cross-tenant explicit scope), **C2**
+(swallowed push "synced" damğalanmasın — `_SKIPPED` sentinel; mənim observability outcome-metriki ilə
+birləşdi), **H1** (webhook HMAC timestamp + replay window), **H4** (outbox monotonic ordering, migration
+0013), **H5/M7** (pricing tiebreak + validity validasiya). Loyalty-only deps təmizləndi.
+
+**Verify:** `make verify` (ruff + format + mypy --strict + bandit + detect-secrets) keçir; **587 test @ 98.22%**
+(merge sonrası birləşmiş suite — roadmap + audit). Lokal-only (CI Q-002 billing bloku, push pauza).
+
+**İnsandan tələb olunan (AI-2.5 gate keçidi üçün):**
+1. AI-2.5-i **APPROVE** et (yuxarıdakı kriteriyalar + lokal yaşıl).
+2. **G-V validasiya** açılır: MVP-ni 5-10 retail satıcıya demo ("məhsulunu Birmarket-ə 5 dəqiqəyə çıxar");
+   strukturlaşmış geri-bildirim (kill/continue kriteriyaları — bax AI-ROADMAP.md §18).
+3. **Partner gate** (paralel, D-002): Birmarket/Trendyol seller API sandbox + credential → mock→real adapter swap.
+
+**Status:** ⏳ **GATE REVIEW** — kod tərəfi tam + audit merge; operator təsdiqi gözləyir.
+**İmza:** (operator dolduracaq)
+
+---
 
 ### AI-2.H — Audit Hardening TAM (avtonom, ADR-0016)
 **Faza:** AI-2.H (5/5 task H1-H5)
