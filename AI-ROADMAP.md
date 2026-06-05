@@ -449,16 +449,25 @@ Mesaj: "Posnet məhsulun 1 addımda marketplace-də, sifariş Posnet-ə düşür
 
 ---
 
-# PART V — DONDURULMUŞ / GƏLƏCƏK (G-V sonrası, qısa)
+# PART V — GENİŞLƏNMƏ (G-V CONTINUE 2026-06-05 → AÇILDI)
 
-G-V keçənə qədər **başlanmır**. Detal həmin faza açılanda ayrıca planning sessiyasında yazılacaq.
+G-V **CONTINUE** keçdi (operator qərarı, 2026-06-05; build+validate paralel — bax HUMAN-GATES G-V). Faza-1 planı aşağıda. Böyük sahələr (delivery/booking/fiscal/accounting/multi-country/cloud) hələ **gated** — validasiya siqnalı və/və ya operator direktivi ilə açılır.
+
+## Part V Faza-1 (V1) — marketplace genişlənmə (beachhead: retail × marketplace)
+
+Beachhead-də qalırıq (AZ retail × marketplace). İlk dilimlər **non-gated** (mock-first) + **geri-qaytarıla-bilən** — adapter framework-in genişlənmə tezisini sübut edir, böyük spekulyativ mərc yox.
+
+- [ ] **V1.1 — 2-ci marketplace adapteri (mock-first)** ◀ İLK. Fərqli wire şəkilli 2-ci mock kanal + adapter (`ChannelAdapter` kontraktı) + contract test. Sübut: "yeni kanal = 1 adapter + contract test, **fərqli wire şəkli**, eyni engine". Docker-siz yoxlanılan (ASGI transport). Non-gated.
+- [ ] **V1.2 — Multi-channel fan-out.** 1 məhsul → N kanal publish; 1 kanalda sifariş → stok **BÜTÜN** kanallarda düşür (dispatcher fan-out — "stok hər yerdə" multi-channel miqyasda). E2E test (2 kanal).
+- [ ] **V1.3 — Real-adapter readiness.** Real swap üçün framework boşluqları (auth variant seam, batch push partial-failure, category mapping table) — non-speculative hardening + ADR.
+- [ ] **V1.4 — Real Birmarket/Trendyol swap** (GATED, paralel). Partner credential (D-002) gələndə mock→real; Trendyol public Marketplace API daha sənədli → texniki olaraq əvvəl ola bilər.
+
+## Sonrakı fazalar (gated — validasiya/direktiv ilə açılır)
 
 | Sahə | Qısa məzmun | Referans pattern |
 |---|---|---|
-| **Real Birmarket/Trendyol** | mock → real adapter swap (partner credential gələndə) | TSoft/Entegra |
-| **2-ci marketplace** | Trendyol (və ya əksinə) — eyni kontrakta 2-ci adapter | ChannelEngine |
-| **Delivery domain** | kafe/restoran üçün; menyu sync + sifariş injection + KDS/status | Wolt Menu/Order API |
-| **Booking domain** | availability/rate push + rezervasiya pull + channel mapping | SiteMinder (channel manager) |
+| **Delivery domain** | kafe/restoran; menyu sync + sifariş injection + KDS/status | Wolt Menu/Order API |
+| **Booking domain** | availability/rate push + rezervasiya pull + channel mapping | SiteMinder |
 | **Fiskal** | real OPK/e-Kassa (AZ) — pilotdan əvvəl məcburi | — |
 | **Accounting** | double-entry ledger + faktura + e-invoice | — |
 | **Multi-country** | TR genişlənmə (config-driven) + KVKK | — |

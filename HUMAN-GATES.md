@@ -15,7 +15,7 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 | **AI-2.H — Audit hardening** (ADR-0016) | AI-2 | ✅ **TAM** (avtonom, AI) | 2026-06-04 | — |
 | **AI-2.5 — Adapter framework + 1 kanal** (ADR-0012, crown jewel) | AI-2 | ✅ **APPROVED** | 2026-06-05 | Scapptv |
 | G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
-| **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ **AKTİV** (validasiya toolkit hazır; operator satıcı demosu edir) | — | — |
+| **G-V — Validasiya** (ADR-0011) | AI-2→3 | ▶ **CONTINUE** (operator qərarı; build+validate **paralel** — pivot hələ mümkün) | 2026-06-05 | Scapptv |
 | G3 — Order Mgmt done | AI-3 | ❄️ Dondurulub | — | — |
 | G4 — Mock Pilot done | AI-4 | ❄️ Dondurulub | — | — |
 | G5 — Online + Category done | AI-5 | ❄️ Dondurulub | — | — |
@@ -162,7 +162,18 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 
 ## Gate Keçidləri (xronoloji jurnal)
 
-### AI-2.5 — Adapter framework + 1 kanal (CROWN JEWEL — TƏSDİQ GÖZLƏYİR)
+### G-V — Validasiya gate (CONTINUE — operator qərarı)
+**Faza:** AI-2 → Part V keçidi
+**Tarix:** 2026-06-05
+**Qərar:** ▶ **CONTINUE** — operator (Scapptv) Part V build-ə keçməyi seçdi ("CONTINUE de → Part V-ə girərəm").
+**Kontekst:** AI-2.5 APPROVED + AI-2.8 Posnet connector + uçtan-uca tam-loop E2E hazır; validasiya kit ([docs/validation/g-v-validation-kit.md](docs/validation/g-v-validation-kit.md)) hazır.
+**⚠️ Dürüstlük qeydi:** Bu qərar **formal satıcı demo datası OLMADAN** verildi — ADR-0011 G-V-nin "validasiyadan əvvəl genişlənmə" intizamını operator avtoritetilə override etdi. Build + validate **PARALEL** gedir: kit hazırdır, satıcı demoları davam edə bilər, **pivot hələ mümkündür**. AI strateji qeydi verdi (bir dəfə, non-blocking), operator qərarı ilə davam edildi. Risk-azaltma: ilk Part V dilimi **ən aşağı-riskli, geri-qaytarıla-bilən** (2-ci marketplace mock-first adapteri) — böyük spekulyativ build (delivery/booking/fiscal) validasiya/direktiv olmadan başlamır.
+**Növbəti:** Part V Faza-1 (AI-ROADMAP Part V) — 2-ci marketplace adapteri (mock-first) → multi-channel fan-out → real-adapter readiness. Real Birmarket/Trendyol swap = D-002 + Q-003 (gated, paralel).
+**İmza:** Scapptv (operator), 2026-06-05.
+
+---
+
+### AI-2.5 — Adapter framework + 1 kanal (CROWN JEWEL — ✅ APPROVED)
 **Faza:** AI-2.5 (6 dilim: 5.1-5.6 + reconciliation + OTel observability)
 **Tarix:** 2026-06-04 → 2026-06-05
 **Son commit:** `38150fd` — chore: merge fix/audit-remediation (ADR-0020 audit) into main
