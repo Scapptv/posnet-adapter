@@ -1,7 +1,7 @@
 # STATUS — Posnet
 
-**Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03, Scapptv); AI-1 Foundation TAM (18/18); **Faza AI-2.H TAM (H1-H5)**; **AI-2.5 ✅ KOD TƏRƏFİ TAM (5.1-5.6)** + **audit-remediation (ADR-0020) merge olundu**
-**Cari task:** **AI-2.5 gate review (operator) → G-V validasiya**. Kod tərəfi tam: adapter kontraktı + contract test · E2E 0 oversell · reconciliation · rate-limit+retry+DLQ · OTel metrik · swap-ready · audit (C1/C2/H1/H4/H5) · **H6 sync deploy-edilə-bilən (registry-driven wiring)** · **AI-2.8 Posnet connector TAM (8.1-8.4, mock-first; pull cron + push write-back)** · **tam-loop E2E + G-V demo artifact**. Növbəti kod-işi yoxdur (real Posnet swap interfeys/credential gözləyir — gated) — gate operator təsdiqi gözləyir.
+**Cari faza:** AI-2 (POS CORE) — G1 ✅ **şərti təsdiq** (2026-06-03); AI-1 TAM (18/18); **AI-2.H TAM (H1-H5)**; **AI-2.5 ✅ APPROVED (2026-06-05, Scapptv)** (5.1-5.6 + audit ADR-0020 + AI-2.8 connector + tam-loop E2E); **G-V validasiya AKTİV**
+**Cari task:** **G-V VALİDASİYA (operator sahə işi)** — AI-2.5 APPROVED, MVP-ni 5-10 retail satıcıya demo → kill/continue. **Validasiya kit hazır:** [docs/validation/g-v-validation-kit.md](docs/validation/g-v-validation-kit.md) (runbook + per-satıcı scorecard + qərar qaydası). **AI üçün non-gated kod-işi yoxdur** — növbəti AI iş G-V *continue* qərarı (Part V: real kanal/Posnet swap) və ya *kill/pivot* re-scope-undan sonra. Real Posnet swap = Q-003 (gated, paralel).
 **Son commit:** `de8a54d` — feat(pos): real Posnet swap seam (auth_headers) + ADR-0022 + Q-003 gate
 **Son uğurlu verify:** 2026-06-05; AI-2 follow-up-lar (transfer + paginasiya) — tam suite **634 @ 98.3%** (Docker stabil olan pəncərədə) + transfer qty-guard unit testi Docker-siz yaşıl; ruff+format+mypy+bandit+detect-secrets keçir. ⚠️ **Docker Desktop bu mühitdə qeyri-stabil** (qalxır → dəqiqələrə ölür → yavaş restart) — tam suite tez-tez ortada Docker-infra error verir (assertion fail YOX); təzə birləşik run hər dəfə alınmır, lokal verify pəncərə-həssasdır. **G-V demo artifact hazır:** [test_e2e_full_loop.py](tests/integration/test_e2e_full_loop.py). AI-2.5 gate: HUMAN-GATES.md (təsdiq gözləyir).
 **Vəziyyət:** AI-2 (2.1–2.4 ✅; **AI-2.H1-H5 ✅**; **AI-2.5.1-5.6 ✅** contract + dispatcher + mock + webhook ingress + **E2E MVP (0 oversell)** + **reconciliation** + **OTel observability**; **+ audit-remediation ADR-0020 C1/C2/H1/H4/H5 merge**). **AI-2.5 nüvəsi tam — G-V validasiya gate-i növbəti.** GitHub `Scapptv/posnet-adapter` (public) — **GitHub-first: `main` origin-də sync** (2026-06-05, 58 commit AI-2.2→AI-2.8.1 push olundu). **CI hələ bloklu** (Q-002 billing — yalnız operator həll edir) amma **push aktiv**, iş GitHub-da davam edir.
@@ -23,7 +23,7 @@ sifariş emalı + online çek).
 - **Beachhead:** **Azərbaycan · pərakəndə · ilk kanal = Birmarket/Trendyol (marketplace)**
 - **Crown jewel:** adapter SDK + canonical model + sync engine (idempotency + reconciliation 1-ci gündən)
 
-> 🔄 Aktiv yol: AI-0 ✅ → AI-1 (Foundation) ✅ → AI-2.1–2.4 (POS/online qat) ✅ → **AI-2.H (Audit hardening) ✅ TAM** → **AI-2.5 (Adapter framework + 1 kanal) ◀ CARİ** → G-V.
+> 🔄 Aktiv yol: AI-0 ✅ → AI-1 ✅ → AI-2.1–2.4 ✅ → **AI-2.H ✅** → **AI-2.5 ✅ APPROVED** (+ AI-2.7 admin-web, AI-2.8 Posnet connector) → **G-V (validasiya) ◀ CARİ**.
 > Detal: `docs/adr/0012-integration-hub-reframe.md`, `docs/adr/0016-audit-hardening-before-adapters.md`, `docs/adr/0017-db-security-posture.md`, `docs/adr/0018-sync-model-enabler.md`.
 
 ---
@@ -262,8 +262,8 @@ Hər migration nə əlavə etdi (`services/core/alembic/versions/`):
 - **G1 (Foundation): ✅ APPROVED (şərti)** (2026-06-03, Scapptv; 18/18 task TAM) — RLS ✅ · eventbus publish→consume→DLQ ✅ · Vault ✅ · canonical model ✅ · Keycloak OIDC ✅ · `libs/auth` ✅ · app skeleton+health+errors(RFC7807) ✅ · auth dep + per-request tenant RLS ✅ · CORS+sec-headers+rate-limit(101→429) ✅ · eventbus lifespan workers (cross-tenant) ✅ · **AI-1.9 TAM** · OTel trace + Prometheus metrics ✅ · tenant onboarding API + seed ✅ · user/role CRUD (tenant RLS) ✅ · feature flags + i18n backend ✅ · health/shutdown drain + pool + backup ✅;
   **şərt + paralel (insan):** GitHub repo → CI yaşıl → sonra `v0.1.0-alpha` tag (AI çəkə bilər). Bax HUMAN-GATES.md → G1.
 - G2 (POS Core): canonical model "hub-a hazır"
-- **AI-2.5 (Adapter framework + 1 kanal):** ADR-0012 — MVP-yə daxil
-- **G-V (Validasiya):** retail satıcı demo (kill/continue)
+- **AI-2.5 (Adapter framework + 1 kanal):** ✅ **APPROVED** (2026-06-05, Scapptv) — crown jewel; ADR-0012
+- **G-V (Validasiya):** ⏳ **AKTİV** — retail satıcı demo (kill/continue); kit [docs/validation/g-v-validation-kit.md](docs/validation/g-v-validation-kit.md)
 - G3-G8: ❄️ təxirdə (G-V sonrası); G7-də starlette CVE məcburi
 
 ---

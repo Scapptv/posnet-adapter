@@ -13,9 +13,9 @@ Bu fayl AI ↔ insan operator arasında gate keçidləri və açıq sualların j
 | G0 — Bootstrap done | AI-0 | ✅ **APPROVED** | 2026-06-01 | Scapptv |
 | G1 — Foundation done | AI-1 | ✅ **APPROVED (şərti)** | 2026-06-03 | Scapptv |
 | **AI-2.H — Audit hardening** (ADR-0016) | AI-2 | ✅ **TAM** (avtonom, AI) | 2026-06-04 | — |
-| **AI-2.5 — Adapter framework + 1 kanal** (ADR-0012, crown jewel) | AI-2 | ⏳ **GATE REVIEW** (kod tam + audit merge; operator təsdiqi gözləyir) | — | — |
+| **AI-2.5 — Adapter framework + 1 kanal** (ADR-0012, crown jewel) | AI-2 | ✅ **APPROVED** | 2026-06-05 | Scapptv |
 | G2 — POS Core done (**MVP**) | AI-2 | ⏳ Planlandı | — | — |
-| **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ Planlandı | — | — |
+| **G-V — Validasiya** (ADR-0011) | AI-2→3 | ⏳ **AKTİV** (validasiya toolkit hazır; operator satıcı demosu edir) | — | — |
 | G3 — Order Mgmt done | AI-3 | ❄️ Dondurulub | — | — |
 | G4 — Mock Pilot done | AI-4 | ❄️ Dondurulub | — | — |
 | G5 — Online + Category done | AI-5 | ❄️ Dondurulub | — | — |
@@ -206,8 +206,8 @@ birləşdi), **H1** (webhook HMAC timestamp + replay window), **H4** (outbox mon
    strukturlaşmış geri-bildirim (kill/continue kriteriyaları — bax AI-ROADMAP.md §18).
 3. **Partner gate** (paralel, D-002): Birmarket/Trendyol seller API sandbox + credential → mock→real adapter swap.
 
-**Status:** ⏳ **GATE REVIEW** — kod tərəfi tam + audit merge; operator təsdiqi gözləyir.
-**İmza:** (operator dolduracaq)
+**Status:** ✅ **APPROVED** — kod tərəfi tam + audit merge + AI-2.8 Posnet connector (8.1-8.4) + uçtan-uca tam-loop E2E (`test_e2e_full_loop.py`). G-V validasiya açıldı (toolkit: [docs/validation/g-v-validation-kit.md](docs/validation/g-v-validation-kit.md)).
+**İmza:** Scapptv (operator), 2026-06-05 — bu sessiyada APPROVE ("AI-2.5-i APPROVE et → MVP-ni 5-10 retail satıcıya demo et").
 
 ---
 
