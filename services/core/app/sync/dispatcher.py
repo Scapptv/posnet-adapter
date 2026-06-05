@@ -57,6 +57,13 @@ from .guard import ChannelGuard, GuardConfig
 
 _log = logging.getLogger(__name__)
 
+# Sentinel returned by ``_guard`` when the call did NOT complete — breaker open
+# or a swallowed non-retryable error. Distinct from ``None`` (which push_stock /
+# push_price return on *success*), so a caller can tell a real sync from a
+# skipped one and avoid stamping ``last_synced_at`` on a push that never landed
+# (C2, ADR-0020).
+_SKIPPED: Any = object()
+
 
 AdapterFactory = Callable[[Channel], Awaitable[ChannelAdapter]]
 """Resolve a channel record to a configured adapter instance.
@@ -130,7 +137,7 @@ class SyncDispatcher:
             )
             adapter = await self._factory(channel)
             results = await self._guard(channel, adapter.push_listing, [canonical])
-            if results is None:
+            if results is _SKIPPED:
                 continue
             result = next(iter(results), None)
             if result is None:
@@ -151,8 +158,12 @@ class SyncDispatcher:
 
         for listing, channel in await self._active_listings(session, variant_id, event.tenant_id):
             adapter = await self._factory(channel)
-            await self._guard(channel, adapter.push_stock, sku=sku, qty=available)
-            listing.last_synced_at = self._clock()
+            outcome = await self._guard(channel, adapter.push_stock, sku=sku, qty=available)
+            # Only stamp last_synced_at when the push actually landed — a swallowed
+            # non-retryable failure must leave the listing visibly stale so
+            # reconciliation / monitoring re-syncs it (C2, ADR-0020).
+            if outcome is not _SKIPPED:
+                listing.last_synced_at = self._clock()
 
     async def _on_override_set(self, session: AsyncSession, event: Event) -> None:
         variant_id = UUID(cast(str, event.payload["variant_id"]))
@@ -169,8 +180,9 @@ class SyncDispatcher:
 
         for listing, channel in await self._active_listings(session, variant_id, event.tenant_id):
             adapter = await self._factory(channel)
-            await self._guard(channel, adapter.push_price, sku=sku, price=price)
-            listing.last_synced_at = self._clock()
+            outcome = await self._guard(channel, adapter.push_price, sku=sku, price=price)
+            if outcome is not _SKIPPED:  # see _on_movement_applied (C2, ADR-0020)
+                listing.last_synced_at = self._clock()
 
     # ----------------------------------------------------------------
     # Channel lookup helpers
@@ -255,12 +267,12 @@ class SyncDispatcher:
         op: Callable[..., Awaitable[Any]],
         *args: Any,
         **kwargs: Any,
-    ) -> Any | None:
+    ) -> Any:
         """Apply rate limit + breaker + error classification around ``op``.
 
-        Returns ``op``'s value on success, ``None`` when the call was skipped
-        (breaker open) or the adapter raised a non-retryable error. Re-raises
-        retryable errors so the consumer's backoff fires.
+        Returns ``op``'s value on success, the ``_SKIPPED`` sentinel when the
+        call was skipped (breaker open) or the adapter raised a non-retryable
+        error. Re-raises retryable errors so the consumer's backoff fires.
         """
         try:
             return await self._guard_impl.call(channel.id, op, *args, **kwargs)
@@ -269,7 +281,7 @@ class SyncDispatcher:
                 "sync_skip_breaker_open",
                 extra={"channel_id": str(channel.id), "channel_code": channel.code},
             )
-            return None
+            return _SKIPPED
         except AdapterRetryableError:
             raise
         except (AdapterAuthError, AdapterPermanentError) as exc:
@@ -282,7 +294,7 @@ class SyncDispatcher:
                     "error_message": exc.message,
                 },
             )
-            return None
+            return _SKIPPED
 
 
 # Module-level dispatch table — declared after the class so the methods are

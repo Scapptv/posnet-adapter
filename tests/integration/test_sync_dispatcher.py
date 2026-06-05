@@ -633,3 +633,68 @@ async def test_dispatch_is_tenant_scoped_on_rls_exempt_session(
     assert len(listings) == 1
     assert listings[0].tenant_id == tenant_a
     assert listings[0].channel_id == channel_a
+
+
+# ----------------------------------------------------------------
+# C2 — a swallowed push must not look synced (ADR-0020)
+# ----------------------------------------------------------------
+
+
+@pytest.mark.integration
+async def test_swallowed_push_does_not_stamp_last_synced_at(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """C2 (ADR-0020): a non-retryable push failure is swallowed (logged, not
+    re-raised) so the change feed isn't blocked — but the listing must NOT get
+    a fresh ``last_synced_at``, or it would look freshly-synced while the
+    channel is actually stale. Leaving it stale is what lets reconciliation /
+    monitoring detect and re-sync it."""
+    tenant_id = await _seed_tenant(async_session_factory, subject="d-c2", email="d-c2@t.az")
+    channel_id = await _seed_channel(async_session_factory, tenant_id)
+    adapter = RecordingAdapter(raise_on=AdapterPermanentError)
+    dispatcher = SyncDispatcher(adapter_factory=_factory_for(adapter), config=_config())
+
+    async with _scoped(async_session_factory, tenant_id) as session:
+        product = await create_product(session, tenant_id=tenant_id, name="P", currency="AZN")
+        product.online_published = True
+        variant = await add_variant(
+            session, tenant_id=tenant_id, product_id=product.id, sku="C2", base_price_minor=100
+        )
+        session.add(
+            ChannelListing(
+                tenant_id=tenant_id,
+                channel_id=channel_id,
+                variant_id=variant.id,
+                external_listing_id="EXT-PRE",
+                status="active",
+            )
+        )
+        await session.flush()
+        variant_id = variant.id
+
+    async with _scoped(async_session_factory, tenant_id) as session:
+        await dispatcher(
+            session,
+            Event(
+                event_type=INVENTORY_MOVEMENT_APPLIED,
+                tenant_id=tenant_id,
+                payload={
+                    "variant_id": str(variant_id),
+                    "warehouse_id": str(uuid4()),
+                    "kind": "in",
+                    "qty": 1,
+                    "new_qty": 5,
+                    "new_reserved_qty": 0,
+                    "version": 1,
+                },
+            ),
+        )
+
+    async with _scoped(async_session_factory, tenant_id) as session:
+        listing = (
+            await session.execute(
+                select(ChannelListing).where(ChannelListing.variant_id == variant_id)
+            )
+        ).scalar_one()
+    # The push was swallowed → listing stays stale (no false "synced" stamp).
+    assert listing.last_synced_at is None
