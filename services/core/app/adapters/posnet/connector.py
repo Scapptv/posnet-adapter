@@ -16,7 +16,7 @@ across both sides of the hub, so the sync engine / ingest classify POS failures
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
@@ -36,10 +36,17 @@ CODE = "posnet"
 
 @dataclass(frozen=True, slots=True)
 class PosnetConfig:
-    """Per-connection settings (one Posnet per tenant)."""
+    """Per-connection settings (one Posnet per tenant).
+
+    ``auth_headers`` is the auth seam for the real Posnet swap (ADR-0022): a
+    scheme-agnostic header map applied to every request — Bearer token, API-key
+    header, or whatever the live Posnet uses — resolved from a Vault ref by the
+    wiring, never hardcoded. The mock leaves it ``None``.
+    """
 
     base_url: str
     timeout_seconds: float = 5.0
+    auth_headers: Mapping[str, str] | None = None
 
 
 class PosnetConnector:
@@ -55,7 +62,9 @@ class PosnetConnector:
     def __init__(self, config: PosnetConfig, *, client: httpx.AsyncClient | None = None) -> None:
         self._config = config
         self._client = client or httpx.AsyncClient(
-            base_url=config.base_url, timeout=config.timeout_seconds
+            base_url=config.base_url,
+            timeout=config.timeout_seconds,
+            headers=dict(config.auth_headers) if config.auth_headers else None,
         )
 
     async def aclose(self) -> None:

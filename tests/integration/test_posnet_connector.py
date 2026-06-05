@@ -135,6 +135,25 @@ async def test_push_order_records_in_pos(
 
 
 # ----------------------------------------------------------------
+# Auth seam (ADR-0022) — the real-Posnet swap point
+# ----------------------------------------------------------------
+
+
+@pytest.mark.integration
+async def test_auth_headers_ride_on_the_client() -> None:
+    """Config auth headers apply to every request via the connector's own httpx
+    client — scheme-agnostic (Bearer, API-key, ...), the real-Posnet swap seam.
+    The mock path (no headers) is exercised by every other test here."""
+    connector = PosnetConnector(
+        PosnetConfig(base_url=BASE, auth_headers={"Authorization": "Bearer secret-token"})
+    )
+    try:
+        assert connector._client.headers["Authorization"] == "Bearer secret-token"
+    finally:
+        await connector.aclose()
+
+
+# ----------------------------------------------------------------
 # HTTP-error classification (synthetic transports, no mock server)
 # ----------------------------------------------------------------
 

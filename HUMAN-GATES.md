@@ -124,6 +124,25 @@ D-002) və (b) PROD secret-lər (real Vault, G7) üçündür. Foundation Keycloa
 **Cavab:** (insan dolduracaq — billing düzəldildikdə "fixed: YYYY-MM-DD, CI run #N green")
 **Cavab tarixi:** (insan dolduracaq)
 
+### Q-003 — Real Posnet interfeysi + credential (POS-tərəfi connector swap)
+**Soruşan:** AI sessiya (Faza AI-2.8)
+**Tarix:** 2026-06-05
+**Kontekst:** AI-2.8 (8.1–8.4) **mock-first Posnet connector**-i tam çatdırdı və **swap-ready**-dir (auth seam + config seam qoyuldu; bax **ADR-0022**). Uçtan-uca loop mock Posnet ilə sübut olundu (`test_e2e_full_loop.py`). **Real** swap üçün AI-nin əldə edə bilmədiyi üç şey lazımdır (CLAUDE.md "NƏ EDƏ BİLMƏRƏM" — external interfeys + real credential):
+1. **Posnet API/DB/format spec** — catalog pull (məhsul/variant/stok/qiymət sahələri) + order push (sifariş/çek şəkli) endpoint-ləri.
+2. **Auth sxemi + credential** — Bearer / API-key / HMAC / başqa; real sirr → **Vault**-a yazılmalı (AI yalnız `vault://...` ref istifadə edir).
+3. **Per-tenant base URL**(lar).
+
+**AI nə edə bilər (bunlar gələnə qədər):** Hub catalog/inventory admin-web/API ilə doldurulur (mock-first); G-V demo mock Posnet ilə tam işləyir. Seam-lər hazırdır → interfeys+credential gələndə dəyişiklik **minimal** (yalnız `_to_canonical`/`push_order` mapping + per-tenant Vault ref wiring + contract test; upstream toxunulmur).
+
+**Variantlar:**
+- A) Operator **indi** Posnet interfeysi + credential verir → AI real connector yazır (mapping + auth wiring + contract test) və swap edir.
+- B) **Sonra** verilir → mock-first davam edir; G-V demo mock ilə keçirilir; real swap G-V *continue* qərarından sonra (partner/interfeys hazır olanda).
+- C) Posnet **REST API vermir** (DB-direct / fayl-eksport / fərqli protokol) → connector strategiyası uyğunlaşdırılır (yeni ADR; `PosSourceAdapter` kontraktı eyni qalır).
+
+**Tövsiyə:** **B** — G-V demo mock-first ilə yetərlidir (crown-jewel loop sübut olunub). Real swap həm operator-un Posnet-ə çıxışından, həm də Posnet layihəsinin öz interfeys hazırlığından asılıdır → G-V *continue* + interfeys hazır olanda edilsin. A seçilərsə, AI dərhal başlaya bilər (spec+credential verilən kimi).
+**Cavab:** (insan dolduracaq)
+**Cavab tarixi:** (insan dolduracaq)
+
 ### Şablon
 ```markdown
 ### Q-NNN — [Qısa başlıq]
