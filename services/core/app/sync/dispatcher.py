@@ -54,6 +54,7 @@ from ..domain.pricing import resolve_price
 from ..infrastructure.db.models import Channel, ChannelListing, Variant
 from .canonical import build_canonical_product
 from .guard import ChannelGuard, GuardConfig
+from .observability import observe_sync_lag, record_push, sync_span
 
 _log = logging.getLogger(__name__)
 
@@ -112,6 +113,11 @@ class SyncDispatcher:
         handler = _DISPATCH.get(event.event_type)
         if handler is None:
             return  # not a sync-relevant event (e.g. identity.tenant.onboarded)
+        # How stale was this event when we picked it up (outbox → dispatch lag)?
+        observe_sync_lag(
+            event_type=event.event_type,
+            seconds=(self._clock() - event.occurred_at).total_seconds(),
+        )
         await handler(self, session, event)
 
     # ----------------------------------------------------------------
@@ -129,7 +135,7 @@ class SyncDispatcher:
                 session, channel_id=channel.id, variant_id=variant_id, tenant_id=event.tenant_id
             )
             adapter = await self._factory(channel)
-            results = await self._guard(channel, adapter.push_listing, [canonical])
+            results = await self._guard(channel, adapter.push_listing, "push_listing", [canonical])
             if results is None:
                 continue
             result = next(iter(results), None)
@@ -151,7 +157,7 @@ class SyncDispatcher:
 
         for listing, channel in await self._active_listings(session, variant_id):
             adapter = await self._factory(channel)
-            await self._guard(channel, adapter.push_stock, sku=sku, qty=available)
+            await self._guard(channel, adapter.push_stock, "push_stock", sku=sku, qty=available)
             listing.last_synced_at = self._clock()
 
     async def _on_override_set(self, session: AsyncSession, event: Event) -> None:
@@ -169,7 +175,7 @@ class SyncDispatcher:
 
         for listing, channel in await self._active_listings(session, variant_id):
             adapter = await self._factory(channel)
-            await self._guard(channel, adapter.push_price, sku=sku, price=price)
+            await self._guard(channel, adapter.push_price, "push_price", sku=sku, price=price)
             listing.last_synced_at = self._clock()
 
     # ----------------------------------------------------------------
@@ -237,36 +243,44 @@ class SyncDispatcher:
         self,
         channel: Channel,
         op: Callable[..., Awaitable[Any]],
+        operation: str,
         *args: Any,
         **kwargs: Any,
     ) -> Any | None:
-        """Apply rate limit + breaker + error classification around ``op``.
+        """Apply rate limit + breaker + error classification around ``op``,
+        under a ``channel.push`` span + a push-outcome counter (AI-2.5.6.3).
 
         Returns ``op``'s value on success, ``None`` when the call was skipped
         (breaker open) or the adapter raised a non-retryable error. Re-raises
         retryable errors so the consumer's backoff fires.
         """
-        try:
-            return await self._guard_impl.call(channel.id, op, *args, **kwargs)
-        except CircuitBreakerOpenError:
-            _log.warning(
-                "sync_skip_breaker_open",
-                extra={"channel_id": str(channel.id), "channel_code": channel.code},
-            )
-            return None
-        except AdapterRetryableError:
-            raise
-        except (AdapterAuthError, AdapterPermanentError) as exc:
-            _log.warning(
-                "sync_non_retryable_error",
-                extra={
-                    "channel_id": str(channel.id),
-                    "channel_code": channel.code,
-                    "error_type": type(exc).__name__,
-                    "error_message": exc.message,
-                },
-            )
-            return None
+        with sync_span("channel.push", channel_code=channel.code, operation=operation):
+            try:
+                result = await self._guard_impl.call(channel.id, op, *args, **kwargs)
+            except CircuitBreakerOpenError:
+                record_push(channel_code=channel.code, operation=operation, outcome="breaker_open")
+                _log.warning(
+                    "sync_skip_breaker_open",
+                    extra={"channel_id": str(channel.id), "channel_code": channel.code},
+                )
+                return None
+            except AdapterRetryableError:
+                record_push(channel_code=channel.code, operation=operation, outcome="retryable")
+                raise
+            except (AdapterAuthError, AdapterPermanentError) as exc:
+                record_push(channel_code=channel.code, operation=operation, outcome="permanent")
+                _log.warning(
+                    "sync_non_retryable_error",
+                    extra={
+                        "channel_id": str(channel.id),
+                        "channel_code": channel.code,
+                        "error_type": type(exc).__name__,
+                        "error_message": exc.message,
+                    },
+                )
+                return None
+            record_push(channel_code=channel.code, operation=operation, outcome="success")
+            return result
 
 
 # Module-level dispatch table — declared after the class so the methods are

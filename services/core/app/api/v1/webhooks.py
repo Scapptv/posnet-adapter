@@ -38,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from libs.adapter import AdapterError, AdapterPermanentError, verify_signature
 
 from ...infrastructure.db.models import Channel
+from ...sync.observability import sync_span
 from ...sync.order_ingest import ingest_channel_order
 
 _log = logging.getLogger(__name__)
@@ -94,9 +95,11 @@ async def receive_webhook(
         except AdapterPermanentError as exc:
             raise HTTPException(status_code=400, detail=exc.message) from exc
 
-        outcome = await ingest_channel_order(
-            session, tenant_id=tenant_id, channel_id=channel.id, order=canonical
-        )
+        with sync_span("channel.ingest", channel_code=code) as span:
+            outcome = await ingest_channel_order(
+                session, tenant_id=tenant_id, channel_id=channel.id, order=canonical
+            )
+            span.set_attribute("status", outcome.status)
 
     # Transaction committed: the order (and any reservations) are durable. Now
     # tell the channel — best-effort, so a channel-side hiccup can't undo a
