@@ -32,6 +32,11 @@ def upgrade() -> None:
     # NOT NULL nextval default for new rows — every future event gets a strictly
     # increasing seq.
     op.execute("ALTER TABLE outbox_events ADD COLUMN seq BIGSERIAL NOT NULL")
+    # BIGSERIAL creates an implicit sequence (outbox_events_seq_seq). The per-request
+    # enqueue path runs as the non-owner posnet_app role, so it needs USAGE to draw
+    # nextval — without this grant the outbox INSERT raises permission denied
+    # (the superuser relay/system pool is unaffected). Mirrors the table grants.
+    op.execute("GRANT USAGE, SELECT ON SEQUENCE outbox_events_seq_seq TO posnet_app")
     # Partial index matching the relay's hot path: WHERE NOT published ORDER BY seq.
     op.execute(
         "CREATE INDEX ix_outbox_events_unpublished_seq "
