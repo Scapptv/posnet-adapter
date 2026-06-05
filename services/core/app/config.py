@@ -99,6 +99,9 @@ class Settings(BaseSettings):
     mock_marketplace_base_url: str = Field(
         default="http://localhost:9200", alias="MOCK_MARKETPLACE_BASE_URL"
     )
+    # 2nd marketplace stand-in (Part V V1.1) — proves multi-channel; same role as
+    # mock_marketplace_base_url. Real adapters read their endpoint from channel.config.
+    mock_bazar_base_url: str = Field(default="http://localhost:9201", alias="MOCK_BAZAR_BASE_URL")
     # Base URL of the Posnet POS (the source of truth). Empty -> POS write-back
     # is a no-op (AI-2.8.3): the inbound flow still reserves + acks the channel,
     # it just doesn't push the order back into a POS until one is wired. Points

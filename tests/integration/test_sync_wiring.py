@@ -68,6 +68,18 @@ def test_register_builtin_adapters_is_idempotent() -> None:
     assert get_adapter(MOCK_CODE) is MockMarketplaceAdapter
 
 
+@pytest.mark.unit
+def test_register_builtin_adapters_registers_second_channel() -> None:
+    """Part V V1.1: the registry holds >1 adapter — a 2nd channel is just a
+    2nd registration, no engine change."""
+    from services.core.app.adapters.mock_bazar import MockBazarAdapter
+    from services.core.app.adapters.mock_bazar.adapter import CODE as BAZAR_CODE
+
+    register_builtin_adapters()
+    assert get_adapter(MOCK_CODE) is MockMarketplaceAdapter
+    assert get_adapter(BAZAR_CODE) is MockBazarAdapter
+
+
 # ----------------------------------------------------------------
 # from_channel + build_adapter
 # ----------------------------------------------------------------

@@ -47,13 +47,18 @@ def register_builtin_adapters() -> None:
     once they exist (with credentials, post-G-V). Idempotent (``register_adapter``
     no-ops on the same class), so calling it on every ``create_app`` is safe.
     """
+    from ..adapters.mock_bazar import MockBazarAdapter
     from ..adapters.mock_marketplace import MockMarketplaceAdapter
 
-    # MockMarketplaceAdapter structurally satisfies the ChannelAdapter Protocol
-    # (proven by the contract suite); mypy can't infer type[Concrete] -> type[Protocol].
+    # Concrete adapters structurally satisfy the ChannelAdapter Protocol (proven by
+    # the contract suites); mypy can't infer type[Concrete] -> type[Protocol].
     register_adapter(
         MockMarketplaceAdapter.capabilities.code,
         cast("type[ChannelAdapter]", MockMarketplaceAdapter),
+    )
+    register_adapter(
+        MockBazarAdapter.capabilities.code,
+        cast("type[ChannelAdapter]", MockBazarAdapter),
     )
 
 
