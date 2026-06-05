@@ -21,6 +21,7 @@ məhsul/stok/qiymətin sahibidir; bu, online-a çıxan curated alt-çoxluq + onl
 sifariş emalı + online çek).
 - **Outbound:** məhsul/stok/qiymət/endirim → (canonical) → kanallar (Trendyol/Birmarket/Wolt/Bolt) **push**
 - **Inbound:** sifariş/ödəniş/kargo → (canonical) → **Posnet** yaz
+- **POS = mövcud Posnet** (ayrı layihə, real ERP — məhsul/stok/qiymətin sahibi): bu hub **POS yazmır**. Posnet-ə **connector** (source-POS adapter) ilə qoşulur — Posnet-dən pull (məhsul/stok/qiymət), Posnet-ə push (sifariş/çek); kanal adapterləri ilə **eyni canonical+adapter nümunəsi**, sadəcə mənbə kanal yox POS-dur. `apps/pos-flutter` / Flutter kassir **scope-da deyil** (admin-web yalnız hub-ın online merchant panelidir, POS deyil).
 - **Beachhead:** **Azərbaycan · pərakəndə · ilk kanal = Birmarket/Trendyol (marketplace)**
 - **Crown jewel:** adapter SDK + canonical model + sync engine (idempotency + reconciliation 1-ci gündən)
 
@@ -141,7 +142,7 @@ həll olundu**, AI-2.5 təmizlənmiş təməl üstündə qurula bilər.
 - [ ] AI-2.5-POS Sale/çek (yarat → stok düş, atomik) + X/Z report
 - [ ] AI-2.6 CanonicalProduct/Inventory/Price map (catalog ↔ canonical_model — hub üçün kritik)
 - [x] **AI-2.7** ✅ — 2026-06-05. **Admin-web minimal** (merchant panel, G-V demo giriş qatı) — Vite+React+TS ([apps/admin-web](apps/admin-web/src)). Keycloak password-grant login (posnet-pos) + Bearer API client; **Products** (list/create + variant/qiymət + variant-üzrə inventar: anbar levels + movement in/out/reserve/...); **Warehouses** (list/create). tsc + eslint(0) + vite build keçir. **Publish + channels view** (`bd18d07`+`2b1a1c1`): `set_online_published` (online_published flip + hər variant `catalog.variant.added` re-emit → dispatcher push) + `POST /v1/products/{id}/publish|unpublish` + `GET /v1/channels` + `/v1/channel-listings`; admin-web-də "Kanala çıxar" toggle + **Kanallar tabı** (sync listinglər: sku/external-id/status/son-sync). **G-V demo dövrəsi tam** (login→məhsul→publish→kanalda görünür). 5 backend test → 603 @ 98.27%.
-- [ ] AI-2.8 Flutter kassir minimal (offline-first satış) — opsional, gec OK
+- [ ] **AI-2.8 Posnet connector** (source-POS adapter) — mövcud Posnet ERP-dən məhsul/stok/qiymət **pull** + sifariş/çek **push**; kanal adapterləri ilə eyni canonical+adapter nümunəsi (mock-first → real, Posnet API/credential gələndə). **Flutter POS YAZILMIR** — POS = ayrı Posnet layihəsi
 
 **Follow-up (G2-yə qədər həll — AI-2.H sonrası vəziyyət):**
 - AI-2.1: `/variants/lookup` cavabına `currency` (+ product_name) əlavə (POS qiymət göstərimi); `list_products` paginasiya. ~~`UNIQUE(tenant_id, barcode)` partial constraint~~ ✅ **H2-də həll** (migration 0010)

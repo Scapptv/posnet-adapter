@@ -38,7 +38,7 @@ Bu ADR audit tapıntılarını (loyalty xaricindəki) və onların remediation q
 
 **Critical + High tapıntıları bu branch-də (`fix/audit-remediation`) TDD ilə düzəldildi** (C1, C2, H1, H4, H5 + M7/H3; hər biri öz atomik commit + regression testi ilə — 8 commit). **H6 (production wiring)** operatorun aktiv 5.6.x sync-engine sahəsindədir → duplikasiyadan/toqquşmadan qaçmaq üçün 5.6.3-ə koordinasiya olunur. Medium/Low tapıntılar burada **sənədləşdirilir** (follow-up backlog) — axını düzgün/səhvsiz edən nüvə Critical+High-dır.
 
-Strateji müşahidə (kod deyil): **mobil POS app mövcud deyil** (`apps/pos-flutter` boş). Məhsul "POS lövbərli"dir, amma POS girişi yazılmayıb — G-V validasiyasından əvvəl roadmap-da yenidən qiymətləndirilməlidir (AI-ROADMAP.md follow-up).
+~~Strateji müşahidə (kod deyil): mobil POS app mövcud deyil (`apps/pos-flutter` boş)…~~ **GERİ GÖTÜRÜLDÜ (2026-06-05, operator düzəlişi):** müşahidə **səhv idi**. **POS = mövcud Posnet** (ayrı layihə, real ERP — məhsul/stok/qiymətin sahibi). Bu layihə inteqrasiya hub-ıdır və **POS YAZMIR**; Posnet-ə **connector** (source-POS adapter — pull məhsul/stok/qiymət + push sifariş/çek) ilə qoşulur. `apps/pos-flutter` silindi; Flutter kassir scope-da deyil. Model: AI-ROADMAP.md **§17.7** + **ADR-0021**.
 
 ## Nəticələr
 
