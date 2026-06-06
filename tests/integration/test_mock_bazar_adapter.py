@@ -9,6 +9,7 @@ ASGI-transport / synthetic — no DB, no Docker.
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncIterator
 
 import httpx
@@ -187,5 +188,67 @@ async def test_error_classification(status_code: int, expected: type[Exception])
     try:
         with pytest.raises(expected):
             await adapter.push_stock(sku="X", qty=1)
+    finally:
+        await adapter.aclose()
+
+
+class _RaisingTransport(httpx.AsyncBaseTransport):
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        raise self._exc
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("exc", [httpx.ReadTimeout("slow"), httpx.ConnectError("dead")])
+async def test_network_errors_map_to_retryable(exc: Exception) -> None:
+    adapter = _adapter_with_transport(_RaisingTransport(exc))
+    try:
+        with pytest.raises(AdapterRetryableError):
+            await adapter.push_stock(sku="X", qty=1)
+    finally:
+        await adapter.aclose()
+
+
+# ----------------------------------------------------------------
+# normalize_webhook — Bazar sale JSON -> canonical (webhook path)
+# ----------------------------------------------------------------
+
+
+def _sale_body(**over: object) -> bytes:
+    sale: dict[str, object] = {
+        "ref": "BZR-SALE-W",
+        "placed_at": "2026-06-05T10:00:00+00:00",
+        "items": [{"merchant_sku": "X", "units": 2, "unit_amount_minor": 150, "label": "Item X"}],
+        "totals": {"sub_amount_minor": 300, "grand_amount_minor": 300, "currency": "AZN"},
+        "buyer": {"name": "Aysel"},
+        "state": "new",
+    }
+    sale.update(over)
+    return json.dumps(sale).encode()
+
+
+@pytest.mark.integration
+async def test_normalize_webhook_maps_sale() -> None:
+    adapter = _adapter_with_transport(_FakeTransport(200))
+    try:
+        order = adapter.normalize_webhook(body=_sale_body(), headers={})
+    finally:
+        await adapter.aclose()
+    assert order.channel_order_id == "BZR-SALE-W"
+    assert order.lines[0].sku == "X" and order.lines[0].qty == 2
+    assert order.totals.grand_total_minor == 300
+    assert order.customer is not None and order.customer.name == "Aysel"
+    assert order.status is OrderStatus.PENDING
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("body", [b"not-json", b"[1, 2, 3]"])
+async def test_normalize_webhook_bad_body_is_permanent(body: bytes) -> None:
+    adapter = _adapter_with_transport(_FakeTransport(200))
+    try:
+        with pytest.raises(AdapterPermanentError):
+            adapter.normalize_webhook(body=body, headers={})
     finally:
         await adapter.aclose()

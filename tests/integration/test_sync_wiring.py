@@ -101,6 +101,25 @@ def test_from_channel_falls_back_to_settings_base_url() -> None:
 
 
 @pytest.mark.unit
+def test_bazar_from_channel_config_and_settings() -> None:
+    """The 2nd adapter wires the same way (Part V V1.1)."""
+    from services.core.app.adapters.mock_bazar import MockBazarAdapter
+
+    from_config = MockBazarAdapter.from_channel(
+        _channel(code="mock-bazar", config={"base_url": "http://bazar-specific"}),
+        settings=_settings(),
+    )
+    assert isinstance(from_config, MockBazarAdapter)
+    assert from_config._config.base_url == "http://bazar-specific"
+
+    from_settings = MockBazarAdapter.from_channel(
+        _channel(code="mock-bazar", config={}),
+        settings=_settings(mock_bazar_base_url="http://bazar-default"),
+    )
+    assert from_settings._config.base_url == "http://bazar-default"
+
+
+@pytest.mark.unit
 def test_build_adapter_resolves_registered_mock() -> None:
     register_builtin_adapters()
     adapter = build_adapter(_channel(), _settings())
