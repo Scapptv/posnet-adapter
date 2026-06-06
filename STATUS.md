@@ -1,9 +1,9 @@
 # STATUS — Posnet
 
 **Cari faza:** **PART V — GENİŞLƏNMƏ (AÇILDI)** — AI-2 TAM (G1 şərti; AI-2.H; AI-2.5 ✅ APPROVED 2026-06-05; AI-2.7/2.8); **G-V ▶ CONTINUE** (operator qərarı 2026-06-05, build+validate paralel — pivot hələ mümkün)
-**Cari task:** **⏸ COMPLETION CHECKPOINT — real-integration treki PARK olundu** (operator 2026-06-05: "real integration trekini Posnet-ə daşıyanda davam edə"). Tamam: **V1.1 ✅** (`e91e18b`) Mock Bazar 2-ci adapter + **V1.2 ✅** (`2d2b887`) multi-channel fan-out (stok 2 kanalda düşür). **Park (Posnet-ə daşıyanda davam):** V1.3 real-adapter readiness + V1.4 real Birmarket/Trendyol (D-002) + **Q-003 real Posnet swap** — interfeys SƏNƏDLİ ([docs/integrations/posnet-connector-spec.md](docs/integrations/posnet-connector-spec.md)), credential→Vault gözləyir. **Resume yolu:** spec §5 (connector dəyişiklikləri) + §6 (operator credential) + Q-003. **Paralel:** G-V satıcı validasiyası (kit hazır).
-**Son commit:** `2d2b887` — test(channel): Part V V1.2 multi-channel fan-out + bazar adapter 100%
-**Son uğurlu verify:** 2026-06-05; **V1.2 TAM + tam suite 655 @ 98.0%** (Docker tam 3:12 davam etdi — definitiv birləşik run: bu sessiyanın bütün işi birlikdə yaşıl: transfer, paginasiya, Posnet connector, full-loop E2E, Mock Bazar, multi-channel fan-out). mock_bazar/adapter.py 100%. ruff+format+mypy(107)+bandit+detect-secrets keçir. ⚠️ **Docker Desktop qeyri-stabil** (bəzən tam suite-də qalır, bəzən ölür) — Docker-siz hissələr (adapter/contract/unit) həmişə yoxlanılır. **G-V demo artifact:** [test_e2e_full_loop.py](tests/integration/test_e2e_full_loop.py).
+**Cari task:** **AI-2.5 deferred hardening (non-gated)** — operator istəyi. **Həll (3/6, ↓ bax):** safety-stock buffer (`b5e0469`), `channels.config` typed schema (`b5e0469`), eventbus health (2.5.6.3). **Qalan:** OTel trace propagation (top, orta mürəkkəblik), per-channel rate-limit (deferred-adjacent), FTS per-tenant (minor), V1.3 seam-lər (real-adapter park-adjacent). Part V V1.1+V1.2 ✅. Real-integration treki (Q-003/V1.4) = **Posnet-ə daşıyanda** (park).
+**Son commit:** `b5e0469` — feat(sync): typed channels.config + per-channel safety-stock buffer
+**Son uğurlu verify:** 2026-06-05; safety-stock + config schema TAM — **tam suite 666 yaşıl** (×2 təmiz run); channel_config.py 100%, dispatcher 95%. ruff+format+mypy(108)+bandit+detect-secrets keçir. (Bir dəfə 1 flaky FAILED reproduce olmadı — Docker/timing, dəyişiklik deyil.) ⚠️ Docker Desktop qeyri-stabil. **G-V demo artifact:** [test_e2e_full_loop.py](tests/integration/test_e2e_full_loop.py).
 **Vəziyyət:** AI-2 (2.1–2.4 ✅; **AI-2.H1-H5 ✅**; **AI-2.5.1-5.6 ✅** contract + dispatcher + mock + webhook ingress + **E2E MVP (0 oversell)** + **reconciliation** + **OTel observability**; **+ audit-remediation ADR-0020 C1/C2/H1/H4/H5 merge**). **AI-2.5 nüvəsi tam — G-V validasiya gate-i növbəti.** GitHub `Scapptv/posnet-adapter` (public) — **GitHub-first: `main` origin-də sync** (2026-06-05, 58 commit AI-2.2→AI-2.8.1 push olundu). **CI hələ bloklu** (Q-002 billing — yalnız operator həll edir) amma **push aktiv**, iş GitHub-da davam edir.
 
 > ✅ **GitHub-first (2026-06-05):** bundan sonra iş axını — hər task → verify → commit → **`push origin/main`**. Bütün iş `main`-ə birləşib və origin-də. `fix/audit-remediation` (audit ADR-0020) main-ə merge + local silindi; `save/ai-2-5-5-order-ingest` artıq (silindi). `feat/loyalty-client` = ayrı loyalty treki (origin-də). Audit (C1/C2/H1/H4/H5/M7) + AI-2.8.1 Posnet connector main-dədir.
@@ -77,13 +77,14 @@ həll olundu**, AI-2.5 təmizlənmiş təməl üstündə qurula bilər.
 
 - ✅ **AI-2.H1 canlı yoxlama (operator smoke)** — Q-001 PASSED (2026-06-04, AI sessiya canlı icrası): (a) Keycloak parol substitusiyası + OIDC round-trip realm `posnet`-də access_token qaytardı (sub/exp/iat/realm_roles=[tenant_admin]); (b) `DATABASE_APP_URL` pool — `posnet_app` non-owner LOGIN tenant-suz 0 sətir, scope ilə öz tenant-ı, `posnet_resolve_tenant` SECURITY DEFINER, journal lockdown UPDATE/DELETE rədd, UNIQUE(tenant_id, sku) live, 3 CHECK constraint live. Detal: HUMAN-GATES.md → Q-001.
 - ⏳ **GitHub CI billing** (HUMAN-ONLY, Q-002) — hesabda "failed payment" Actions runner-ləri dayandırır. **AI bu sahədə icra edə bilməz** (kart + GitHub Support ticket — operator). Lokal `make verify` + 443 test yaşıl, kod tərəfdən bloklamır; `v0.1.0-alpha` tag CI yaşıl olduqda çəkiləcək. Detal: HUMAN-GATES.md → Q-002.
-- 🔮 **AI-2.5 ərzində açılır** (qətnamə H-də tutulmayıb, sonradan həll olunur):
-  - FTS gin tenant-aware (per-tenant index hint)
-  - Per-tenant + per-kanal rate-limit
-  - Eventbus health (DLQ depth, queue lag metrik)
-  - OTel trace propagation outbox → consumer → adapter
-  - Aggregation override mexanizmi (per-channel buffer, safety-stock) — ADR-0018 §5 amendment
-  - `channels.config` JSONB üçün Pydantic schema (adapter-spesifik)
+- 🔮 **AI-2.5 deferred hardening** (status 2026-06-05 — 3/6 həll):
+  - [x] **Aggregation override (safety-stock)** ✅ (`b5e0469`) — per-channel buffer, dispatcher push-da `max(available - safety_stock, 0)`; ADR-0018 §5
+  - [x] **`channels.config` Pydantic schema** ✅ (`b5e0469`) — `ChannelConfig` typed view (webhook + adapter from_channel)
+  - [x] **Eventbus health (DLQ depth, lag metrik)** ✅ — AI-2.5.6.3 (`observability.py`: `posnet_sync_dlq_depth`, `_lag_seconds`)
+  - [ ] **OTel trace propagation** outbox → consumer → adapter (orta mürəkkəblik; eventbus Event-ə traceparent) — qalan ən dəyərli non-deferred item
+  - [ ] **Per-tenant + per-kanal rate-limit** (capabilities.rate_limit_rps-dən; guard hazır, wiring qalır) — real kanallar park, deferred-adjacent
+  - [ ] **FTS gin tenant-aware** (per-tenant index hint) — minor
+- 🔮 **V1.3 real-adapter readiness** (real adapterlər park → bunlar da park-adjacent): auth variant seam, batch push partial-failure, category mapping table
 
 ### H1-H5 detalları (tarixi qeyd üçün — keçmişdən gələcəyə)
 
