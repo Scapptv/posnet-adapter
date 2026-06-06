@@ -42,6 +42,8 @@ from libs.canonical_model import (
     OrderStatus,
 )
 
+from ...sync.channel_config import parse_channel_config
+
 CODE = "mock-bazar"
 
 # Bazar listing state <-> hub channel-listing status vocabulary.
@@ -100,8 +102,7 @@ class MockBazarAdapter:
     def from_channel(cls, channel: Any, *, settings: Any) -> MockBazarAdapter:
         """Construct for a channel row (H6 wiring). Base URL from
         ``channel.config['base_url']`` or ``settings.mock_bazar_base_url``."""
-        config = channel.config if isinstance(channel.config, dict) else {}
-        base_url = config.get("base_url") or settings.mock_bazar_base_url
+        base_url = parse_channel_config(channel.config).base_url or settings.mock_bazar_base_url
         return cls(MockBazarConfig(base_url=str(base_url)))
 
     # ----------------------------------------------------------------

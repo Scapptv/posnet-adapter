@@ -9,6 +9,7 @@ listings + two registered adapters do all of it). Real DB; both mocks over ASGI.
 
 from __future__ import annotations
 
+import json
 from uuid import UUID
 
 import httpx
@@ -46,21 +47,27 @@ MM = "mock-marketplace"
 BZ = "mock-bazar"
 
 
-async def _seed_tenant(factory: async_sessionmaker[AsyncSession]) -> UUID:
+async def _seed_tenant(
+    factory: async_sessionmaker[AsyncSession], *, subject: str = "mc-sub", email: str = "mc@t.az"
+) -> UUID:
     async with factory() as session, session.begin():
         result = await onboard_tenant(
             session,
             name="T",
             country_code="AZ",
             plan="free",
-            admin_email="mc@t.az",
-            admin_subject="mc-sub",
+            admin_email=email,
+            admin_subject=subject,
         )
     return result.tenant_id
 
 
 async def _seed_channel(
-    factory: async_sessionmaker[AsyncSession], tenant_id: UUID, code: str
+    factory: async_sessionmaker[AsyncSession],
+    tenant_id: UUID,
+    code: str,
+    *,
+    config: dict[str, object] | None = None,
 ) -> UUID:
     async with factory() as session, session.begin():
         await apply_tenant_scope(session, tenant_id)
@@ -69,10 +76,10 @@ async def _seed_channel(
                 (
                     await session.execute(
                         text(
-                            "INSERT INTO channels (tenant_id, code, name, status) "
-                            "VALUES (:t, :c, :c, 'active') RETURNING id"
+                            "INSERT INTO channels (tenant_id, code, name, status, config) "
+                            "VALUES (:t, :c, :c, 'active', :cfg) RETURNING id"
                         ),
-                        {"t": str(tenant_id), "c": code},
+                        {"t": str(tenant_id), "c": code, "cfg": json.dumps(config or {})},
                     )
                 ).scalar_one()
             )
@@ -193,3 +200,39 @@ async def test_publish_and_order_fan_out_to_both_channels(
         # 20 - 4 reserved = 16 available, pushed to BOTH channels — stok hər yerdə düşdü.
         assert mm_store.listing_by_sku(SKU).stock == 16  # type: ignore[union-attr]
         assert bz_store.product_by_sku(SKU).quantity == 16  # type: ignore[union-attr]
+
+
+@pytest.mark.integration
+async def test_safety_stock_buffer_holds_back_units(
+    migrated_db: None, async_session_factory: async_sessionmaker[AsyncSession]
+) -> None:
+    """A channel with ``safety_stock=5`` never sees the full quantity — the
+    buffer is held back so concurrent in-store sales can't oversell it (ADR-0018
+    §5). Push of 20 stock → channel sees 15."""
+    factory = async_session_factory
+    store = MockStore()
+    app = create_mm_app(store)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),  # type: ignore[arg-type]
+        base_url="http://mm",
+    ) as client:
+        adapter = MockMarketplaceAdapter(MockMarketplaceConfig(base_url="http://mm"), client=client)
+
+        async def _factory(_channel: object) -> ChannelAdapter:
+            return adapter
+
+        dispatcher = SyncDispatcher(
+            adapter_factory=_factory,
+            config=DispatcherConfig(
+                rate_per_second=1000, rate_burst=100, rate_acquire_timeout_seconds=5.0
+            ),
+        )
+
+        tenant_id = await _seed_tenant(factory, subject="mc-ss", email="mc-ss@t.az")
+        await _seed_channel(factory, tenant_id, MM, config={"safety_stock": 5})
+        await _seed_product(factory, tenant_id, qty=20)
+
+        await _drain_outbox(factory, tenant_id, dispatcher)
+        listing = store.listing_by_sku(SKU)
+        assert listing is not None
+        assert listing.stock == 15  # 20 - 5 safety buffer

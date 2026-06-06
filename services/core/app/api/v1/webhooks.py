@@ -39,6 +39,7 @@ from libs.adapter import AdapterError, AdapterPermanentError, verify_signature
 from libs.canonical_model import CanonicalOrder
 
 from ...infrastructure.db.models import Channel
+from ...sync.channel_config import parse_channel_config
 from ...sync.observability import sync_span
 from ...sync.order_ingest import ingest_channel_order
 
@@ -111,7 +112,7 @@ async def receive_webhook(
                 status_code=400, detail="channel adapter does not support webhook orders"
             )
 
-        secret = channel.config.get("webhook_secret") if isinstance(channel.config, dict) else None
+        secret = parse_channel_config(channel.config).webhook_secret
         if not secret:
             raise HTTPException(status_code=503, detail="channel has no webhook secret configured")
         signature_header = adapter.capabilities.webhook_signature_header

@@ -53,6 +53,7 @@ from ..domain.events import (
 from ..domain.pricing import resolve_price
 from ..infrastructure.db.models import Channel, ChannelListing, Variant
 from .canonical import build_canonical_product
+from .channel_config import parse_channel_config
 from .guard import ChannelGuard, GuardConfig
 from .observability import observe_sync_lag, record_push, sync_span
 
@@ -142,7 +143,16 @@ class SyncDispatcher:
                 session, channel_id=channel.id, variant_id=variant_id, tenant_id=event.tenant_id
             )
             adapter = await self._factory(channel)
-            results = await self._guard(channel, adapter.push_listing, "push_listing", [canonical])
+            # Per-channel safety-stock (ADR-0018 §5): hold back a buffer so the
+            # channel never sees the full quantity — concurrent in-store sales /
+            # sync lag can't oversell it.
+            buffer = parse_channel_config(channel.config).safety_stock
+            to_push = (
+                canonical.model_copy(update={"stock_qty": max(canonical.stock_qty - buffer, 0)})
+                if buffer
+                else canonical
+            )
+            results = await self._guard(channel, adapter.push_listing, "push_listing", [to_push])
             if results is _SKIPPED:
                 continue
             result = next(iter(results), None)
@@ -164,8 +174,10 @@ class SyncDispatcher:
 
         for listing, channel in await self._active_listings(session, variant_id, event.tenant_id):
             adapter = await self._factory(channel)
+            # Per-channel safety-stock buffer (ADR-0018 §5) — see _on_variant_added.
+            buffer = parse_channel_config(channel.config).safety_stock
             outcome = await self._guard(
-                channel, adapter.push_stock, "push_stock", sku=sku, qty=available
+                channel, adapter.push_stock, "push_stock", sku=sku, qty=max(available - buffer, 0)
             )
             # Only stamp last_synced_at when the push actually landed — a swallowed
             # non-retryable failure must leave the listing visibly stale so

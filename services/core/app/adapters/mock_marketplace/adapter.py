@@ -41,6 +41,8 @@ from libs.canonical_model import (
     OrderStatus,
 )
 
+from ...sync.channel_config import parse_channel_config
+
 CODE = "mock-marketplace"
 
 
@@ -92,8 +94,9 @@ class MockMarketplaceAdapter:
         failing that, ``settings.mock_marketplace_base_url``. ``channel`` and
         ``settings`` are typed loosely on purpose — the adapter stays decoupled
         from the app's ORM / config layer (it only reads two attributes)."""
-        config = channel.config if isinstance(channel.config, dict) else {}
-        base_url = config.get("base_url") or settings.mock_marketplace_base_url
+        base_url = (
+            parse_channel_config(channel.config).base_url or settings.mock_marketplace_base_url
+        )
         return cls(MockMarketplaceConfig(base_url=str(base_url)))
 
     # ----------------------------------------------------------------
